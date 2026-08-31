@@ -1,0 +1,92 @@
+import { Col } from '../core/UITheme';
+import { GameState } from '../core/GameState';
+import type { ChoiceView } from '../ui/ChoiceView';
+import type { DialogView } from '../ui/DialogView';
+import type { Hud } from '../ui/Hud';
+import type { PhoneView } from '../ui/PhoneView';
+import type { PopupView } from '../ui/PopupView';
+import type { Portraits } from '../ui/Portraits';
+import type { SceneView } from '../ui/SceneView';
+import type { TaskBar } from '../ui/TaskBar';
+import type { ThoughtView } from '../ui/ThoughtView';
+import type { Overlay } from '../ui/Overlay';
+
+export type Speaker = 'mom' | 'supporter' | 'xiaozhi';
+export type SceneKind = 'pink' | 'living-day' | 'living-night';
+
+export type Step =
+    | { k: 'dialog'; who: Speaker; text: string }
+    | { k: 'choices'; hint?: string; options: { t: string; then?: Step[] }[] }
+    | { k: 'thought'; text: string }
+    | { k: 'scene'; s: SceneKind }
+    | { k: 'badge'; text: string }
+    | { k: 'achieve'; name: string }
+    | { k: 'ui'; run: (ctx: Ctx) => Promise<void> };
+
+export interface Ctx {
+    dialog: DialogView;
+    portraits: Portraits;
+    choices: ChoiceView;
+    thought: ThoughtView;
+    popup: PopupView;
+    scene: SceneView;
+    taskbar: TaskBar;
+    hud: Hud;
+    phone: PhoneView;
+    overlay: Overlay;
+}
+
+function speakerInfo(who: Speaker): { label: string; portrait: Speaker } {
+    switch (who) {
+        case 'mom': return { label: GameState.momName, portrait: 'mom' };
+        case 'supporter': return { label: GameState.supporterLabel(), portrait: 'supporter' };
+        case 'xiaozhi': return { label: '小智', portrait: 'xiaozhi' };
+    }
+}
+
+/** 顺序执行一段剧情脚本 */
+export async function runSteps(ctx: Ctx, steps: Step[]): Promise<void> {
+    for (const s of steps) await runStep(ctx, s);
+}
+
+async function runStep(ctx: Ctx, s: Step): Promise<void> {
+    switch (s.k) {
+        case 'dialog': {
+            const info = speakerInfo(s.who);
+            ctx.portraits.show(info.portrait);
+            ctx.dialog.root.active = true;
+            await ctx.dialog.say(info.label, Col.pinkDeep, GameState.subst(s.text));
+            break;
+        }
+        case 'choices': {
+            ctx.portraits.hide();
+            ctx.dialog.hide();
+            const texts = s.options.map((o) => GameState.subst(o.t));
+            const idx = await ctx.choices.choose(s.hint ?? null, texts);
+            ctx.choices.hide();
+            const opt = s.options[idx];
+            if (opt.then && opt.then.length) await runSteps(ctx, opt.then);
+            break;
+        }
+        case 'thought': {
+            ctx.dialog.hide();
+            await ctx.thought.show(GameState.subst(s.text));
+            break;
+        }
+        case 'scene':
+            ctx.scene.set(s.s);
+            break;
+        case 'badge':
+            await ctx.hud.time.appear(s.text);
+            break;
+        case 'achieve':
+            GameState.achievements.push(s.name);
+            GameState.badge++;
+            GameState.save();
+            await ctx.hud.banner.show(s.name);
+            break;
+        case 'ui':
+            await s.run(ctx);
+            break;
+    }
+}
