@@ -1,4 +1,4 @@
-import { Graphics, Node } from 'cc';
+import { Graphics, Node, UITransform, Vec2 } from 'cc';
 import { block, Col, DH, label, layer } from '../core/UITheme';
 
 /**
@@ -30,7 +30,11 @@ export class ChoiceView {
             }
             options.forEach((text, i) => {
                 const bar = block(this.root, 640, barH, Col.white, 18, 0, y, Col.line);
-                label(bar, text, { size: 28, color: Col.ink, wrap: 580, lineHeight: 38 }, 0, 20);
+                const l = label(bar, text, { size: 28, color: Col.ink, wrap: 540, lineHeight: 38 });
+                // 包裹文字默认顶锚点：双行时会溢出长条下边缘。改为中心锚点，单行/双行都垂直居中
+                const lt = l.node.getComponent(UITransform);
+                if (lt) lt.anchorPoint = new Vec2(0.5, 0.5);
+                l.node.setPosition(0, 0);
                 bar.on(Node.EventType.TOUCH_END, () => {
                     if (this.busy) return;
                     this.busy = true;
