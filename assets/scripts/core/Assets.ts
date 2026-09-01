@@ -15,7 +15,6 @@ const MANIFEST: Record<string, string> = {
     crib_fill: 'img/crib_fill',
     calendar: 'img/calendar',
     ribbon: 'img/ribbon',
-    thought: 'img/thought',
     phone: 'img/phone',
     task_sleep: 'img/task_sleep',
     task_diaper: 'img/task_diaper',

@@ -1,17 +1,40 @@
-import { Node, tween, UIOpacity, Vec3 } from 'cc';
-import { Img } from '../core/Assets';
-import { Col, DW, label, layer } from '../core/UITheme';
+import { Graphics, Node, tween, UIOpacity, Vec3 } from 'cc';
+import { block, Col, DW, label, layer, ui } from '../core/UITheme';
 
-/** 云朵想法气泡：浮在妈妈头顶，斜体文字，自动停留后淡出 */
+/**
+ * 云朵想法气泡：浮在妈妈头顶，斜体文字，自动停留后淡出。
+ * 气泡用 Graphics 直接绘制（白底圆角矩形 + 粉色描边 + 左下双圆尾巴），
+ * 不再依赖 thought.png 切图：文字安全区精确可控，不受切图缩放/字体回退影响。
+ */
 export class ThoughtView {
     root: Node;
     private textL: ReturnType<typeof label>;
 
     constructor(parent: Node) {
         this.root = layer(parent, 'thought');
-        Img.sprite(this.root, 'thought', 360, 0, 0);
-        this.textL = label(this.root, '', { size: 24, color: Col.ink, italic: true, wrap: 230, lineHeight: 32 }, 12, 18);
+        const W = 360; const H = 240;
+        // 主体气泡（文字安全区 = W-80 × H-60，几何中心即视觉中心）
+        block(this.root, W, H, Col.white, 30, 0, 10, Col.pink, 3);
+        // 左下角尾巴（仿原云朵图的两个渐小圆）
+        this.tail(14, -W / 2 + 48, -H / 2 - 16);
+        this.tail(8, -W / 2 + 22, -H / 2 - 46);
+        // 顶锚点：两行文字（2×32=64px）时正好居中于气泡
+        this.textL = label(this.root, '', { size: 24, color: Col.ink, italic: true, wrap: W - 80, lineHeight: 32 }, 0, 42);
         this.root.active = false;
+    }
+
+    /** 气泡尾巴：白底粉边小圆 */
+    private tail(r: number, x: number, y: number): void {
+        const n = new Node('tail');
+        this.root.addChild(n);
+        ui(n, r * 2, r * 2, x, y);
+        const g = n.addComponent(Graphics);
+        g.fillColor = Col.white;
+        g.strokeColor = Col.pink;
+        g.lineWidth = 3;
+        g.circle(0, 0, r);
+        g.fill();
+        g.stroke();
     }
 
     /** 出现在场景中的指定位置（相对屏幕中心） */

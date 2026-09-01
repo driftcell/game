@@ -2,7 +2,7 @@ import { Color, Node, tween, UIOpacity, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, button, Col, DH, DW, label, layer, ui } from '../core/UITheme';
 
-/** 右下角手机图标 + 章节任务卡滑出面板 */
+/** 右侧边缘手机图标 + 章节任务卡滑出面板 */
 export class PhoneView {
     root: Node;
     private iconN: Node;
@@ -10,9 +10,10 @@ export class PhoneView {
 
     constructor(parent: Node) {
         this.root = layer(parent, 'phone');
-        this.iconN = Img.sprite(this.root, 'phone', 96);
+        this.iconN = Img.sprite(this.root, 'phone', 64);
         const W = DW; const H = DH;
-        this.iconN.setPosition(W / 2 - 90, -H / 2 + 110);
+        // 右侧中上部空档区：避开对白/选项/任务卡（y<-227）与时间徽章/绶带（y>552）
+        this.iconN.setPosition(W / 2 - 44, H / 2 - 400);
         // 呼吸提示
         tween(this.iconN).to(1.2, { scale: new Vec3(1.05, 1.05, 1) }).to(1.2, { scale: new Vec3(1, 1, 1) }).union().repeatForever().start();
     }
