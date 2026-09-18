@@ -1,4 +1,4 @@
-import { Button, Color, Graphics, HorizontalTextAlignment, Label, Node, Size, Sprite, SpriteFrame, Texture2D, UITransform, UIOpacity, Vec2, VerticalTextAlignment, Widget } from 'cc';
+import { Button, Color, Graphics, HorizontalTextAlignment, Label, Node, Size, Sprite, SpriteFrame, Texture2D, UITransform, UIOpacity, VerticalTextAlignment, Widget } from 'cc';
 
 /** 设计分辨率（竖屏，全面屏手机比例，与切图一致） */
 export const DW = 750;
@@ -89,18 +89,23 @@ export function stretch(parent: Node, name: string): Node {
     return n;
 }
 
-/** 纯色块（可圆角、可描边）。颜色可带透明度 */
-export function block(parent: Node, w: number, h: number, color: Color, radius = 0, x = 0, y = 0, stroke?: Color, lineWidth = 2): Node {
-    const n = new Node('block');
-    parent.addChild(n);
-    ui(n, w, h, x, y);
-    const g = n.addComponent(Graphics);
+/** 重绘纯色块（可圆角、可描边）。颜色可带透明度 */
+export function paintBlock(g: Graphics, w: number, h: number, color: Color, radius = 0, stroke?: Color, lineWidth = 2): void {
+    g.clear();
     g.fillColor = color;
     if (stroke) { g.strokeColor = stroke; g.lineWidth = lineWidth; }
     if (radius > 0) g.roundRect(-w / 2, -h / 2, w, h, radius);
     else g.rect(-w / 2, -h / 2, w, h);
     g.fill();
     if (stroke) g.stroke();
+}
+
+/** 纯色块（可圆角、可描边）。颜色可带透明度 */
+export function block(parent: Node, w: number, h: number, color: Color, radius = 0, x = 0, y = 0, stroke?: Color, lineWidth = 2): Node {
+    const n = new Node('block');
+    parent.addChild(n);
+    ui(n, w, h, x, y);
+    paintBlock(n.addComponent(Graphics), w, h, color, radius, stroke, lineWidth);
     return n;
 }
 
@@ -108,14 +113,14 @@ export interface LabelOpt {
     size?: number; color?: Color; bold?: boolean; italic?: boolean;
     family?: string; lineHeight?: number;
     hAlign?: HorizontalTextAlignment; vAlign?: VerticalTextAlignment;
-    wrap?: number;
 }
 
-export function label(parent: Node, text: string, o: LabelOpt = {}, x = 0, y = 0): Label {
-    const n = new Node('label');
-    parent.addChild(n);
-    const l = n.addComponent(Label);
-    l.string = text;
+export interface BoxLabelOpt extends LabelOpt {
+    /** 文本超框时自动缩小字号（有额外 CPU 开销，打字机效果勿用） */
+    shrink?: boolean;
+}
+
+function applyFont(l: Label, o: LabelOpt): void {
     l.useSystemFont = true;
     l.fontFamily = o.family ?? 'PingFang SC';
     l.fontSize = o.size ?? 28;
@@ -125,19 +130,60 @@ export function label(parent: Node, text: string, o: LabelOpt = {}, x = 0, y = 0
     l.lineHeight = o.lineHeight ?? Math.round((o.size ?? 28) * 1.4);
     l.horizontalAlign = o.hAlign ?? HorizontalTextAlignment.CENTER;
     l.verticalAlign = o.vAlign ?? VerticalTextAlignment.CENTER;
-    if (o.wrap) {
-        l.enableWrapText = true;
-        l.overflow = Label.Overflow.RESIZE_HEIGHT;
-        const t = ui(n, o.wrap, (o.size ?? 28) * 1.4, x, y);
-        // 顶锚点：多行时向下生长；水平锚随对齐方式，方便用左上角坐标定位
-        const ax = o.hAlign === HorizontalTextAlignment.LEFT ? 0 : o.hAlign === HorizontalTextAlignment.RIGHT ? 1 : 0.5;
-        t.anchorPoint = new Vec2(ax, 1);
-        l.verticalAlign = VerticalTextAlignment.TOP;
-    } else {
-        l.overflow = Label.Overflow.NONE;
-        n.setPosition(x, y);
-    }
+}
+
+/** 自由文本：节点尺寸自适应文字，(x,y) 即文字中心 */
+export function label(parent: Node, text: string, o: LabelOpt = {}, x = 0, y = 0): Label {
+    const n = new Node('label');
+    parent.addChild(n);
+    const l = n.addComponent(Label);
+    applyFont(l, o);
+    l.overflow = Label.Overflow.NONE;
+    l.string = text;
+    n.setPosition(x, y);
     return l;
+}
+
+/**
+ * 框内文本：内容尺寸 = 框内安全区，锚点保持默认中心，(x,y) 为框中心。
+ * 文字按 hAlign/vAlign 在框内对齐，不修改锚点，多行也不会偏。
+ */
+export function labelInBox(parent: Node, text: string, w: number, h: number, o: BoxLabelOpt = {}, x = 0, y = 0): Label {
+    const n = new Node('label');
+    parent.addChild(n);
+    ui(n, w, h, x, y);
+    const l = n.addComponent(Label);
+    applyFont(l, o);
+    l.overflow = o.shrink ? Label.Overflow.SHRINK : Label.Overflow.CLAMP;
+    l.enableWrapText = true;
+    l.string = text;
+    return l;
+}
+
+/**
+ * 自动高度文本：宽度固定，高度随内容向下生长，(x,yTop) 为文字顶边。
+ * 高度用 measure() 读取后自行布局容器（如对白卡）。
+ */
+export function labelAuto(parent: Node, text: string, w: number, o: LabelOpt = {}, x = 0, yTop = 0): Label {
+    const n = new Node('label');
+    parent.addChild(n);
+    const lineH = o.lineHeight ?? Math.round((o.size ?? 28) * 1.4);
+    const t = ui(n, w, lineH, x, yTop);
+    const l = n.addComponent(Label);
+    applyFont(l, o);
+    l.overflow = Label.Overflow.RESIZE_HEIGHT;
+    l.enableWrapText = true;
+    const ax = l.horizontalAlign === HorizontalTextAlignment.LEFT ? 0 : l.horizontalAlign === HorizontalTextAlignment.RIGHT ? 1 : 0.5;
+    t.setAnchorPoint(ax, 1);
+    l.string = text;
+    return l;
+}
+
+/** 强制立即排版并返回文字实际高度（配合 labelAuto 使用） */
+export function measure(l: Label): number {
+    l.updateRenderData(true);
+    const t = l.node.getComponent(UITransform);
+    return t ? t.height : l.lineHeight;
 }
 
 export interface BtnOpt {

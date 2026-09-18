@@ -1,6 +1,6 @@
-import { Color, EditBox, Graphics, HorizontalTextAlignment, Label, Node, Sprite, tween, UIOpacity, Vec3 } from 'cc';
+import { Color, EditBox, Graphics, HorizontalTextAlignment, Label, Node, Sprite, tween, UIOpacity, UITransform, Vec3, VerticalTextAlignment } from 'cc';
 import { Img } from '../core/Assets';
-import { block, button, Col, DH, label, layer, ui, whiteSF } from '../core/UITheme';
+import { block, button, Col, DH, label, labelInBox, layer, ui, whiteSF } from '../core/UITheme';
 
 export interface InputCfg { title: string; placeholder: string; altLabel?: string; }
 export interface PickCfg { title: string; options: string[]; }
@@ -67,6 +67,13 @@ export class PopupView {
         eb.returnType = EditBox.KeyboardReturnType.DONE;
         const tl = label(boxN, '', { size: 30, color: Col.ink });
         const pl = label(boxN, cfg.placeholder, { size: 30, color: Col.gray });
+        // EditBox 按左上角摆放 textLabel/placeholderLabel，锚点必须是 (0,1)
+        for (const l of [tl, pl]) {
+            const t = l.node.getComponent(UITransform)!;
+            t.setAnchorPoint(0, 1);
+            t.setContentSize(500, 88);
+            l.verticalAlign = VerticalTextAlignment.TOP;
+        }
         eb.textLabel = tl;
         eb.placeholderLabel = pl;
 
@@ -92,14 +99,14 @@ export class PopupView {
         const rowH = 92;
         const H = 92 + cfg.options.length * (rowH + 14) + 130;
         const header = this.open(W, H);
-        label(header, cfg.title, { size: 32, bold: true, color: Col.white, wrap: 520, lineHeight: 40 }, 0, 24);
+        labelInBox(header, cfg.title, 520, 92, { size: 32, bold: true, color: Col.white, lineHeight: 40 });
 
         let selected = 0;
         const rows: { row: Node; textL: Label; radio: Sprite }[] = [];
         let y = H / 2 - 92 - rowH / 2 - 16;
         cfg.options.forEach((text, i) => {
             const row = block(this.card, 520, rowH, i === 0 ? Col.pinkSoft : Col.white, 14, 0, y, i === 0 ? Col.pink : Col.line);
-            const textL = label(row, text, { size: 30, color: i === 0 ? Col.pinkDeep : Col.ink, hAlign: HorizontalTextAlignment.LEFT, wrap: 380 }, -40, 22);
+            const textL = labelInBox(row, text, 400, rowH, { size: 30, color: i === 0 ? Col.pinkDeep : Col.ink, hAlign: HorizontalTextAlignment.LEFT }, -40, 0);
             const radioN = new Node('radio');
             row.addChild(radioN);
             ui(radioN, 36, 36, 200, 0);

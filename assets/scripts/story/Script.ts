@@ -120,7 +120,7 @@ export function chapter1Steps(): Step[] {
             ],
         },
 
-        // 三个可点击任务（布置小游戏本期不做：点击直接完成；购物清单为阅读弹窗）
+        // 三个可点击任务（睡眠区为拖拽布置小游戏；尿布台本期跳过，点击直接完成；购物清单为阅读弹窗）
         {
             k: 'ui', run: async (ctx) => {
                 ctx.dialog.hide();

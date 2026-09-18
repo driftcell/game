@@ -1,6 +1,6 @@
 import { Color, Node, tween, UIOpacity, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
-import { block, button, Col, DH, DW, label, layer, ui } from '../core/UITheme';
+import { block, button, Col, DH, DW, label, labelInBox, layer, ui } from '../core/UITheme';
 
 /** 右侧边缘手机图标 + 章节任务卡滑出面板 */
 export class PhoneView {
@@ -38,8 +38,8 @@ export class PhoneView {
         label(this.panel, '新的章节已解锁', { size: 22, color: Col.gray }, -panelW / 2 + 210, 560 / 2 - 108);
         // 任务卡
         const card = block(this.panel, panelW - 80, 240, Col.pinkSoft, 20, 0, -10, Col.pink);
-        label(card, title, { size: 32, bold: true, color: Col.pinkDeep, wrap: panelW - 140, lineHeight: 42 });
-        label(card, subtitle, { size: 26, color: Col.gray }, 0, -80);
+        labelInBox(card, title, panelW - 140, 116, { size: 32, bold: true, color: Col.pinkDeep, lineHeight: 42 }, 0, 34);
+        labelInBox(card, subtitle, panelW - 140, 40, { size: 26, color: Col.gray }, 0, -52);
         return new Promise<void>((resolve) => {
             button(this.panel, '接 受', () => {
                 tween(this.panel!).to(0.3, { position: new Vec3(W / 2 + panelW, -H / 2 + 500, 0) }).call(() => {

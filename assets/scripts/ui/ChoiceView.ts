@@ -1,5 +1,5 @@
-import { Graphics, Node, UITransform, Vec2 } from 'cc';
-import { block, Col, DH, label, layer } from '../core/UITheme';
+import { Graphics, Node } from 'cc';
+import { block, Col, DH, label, labelInBox, layer, paintBlock } from '../core/UITheme';
 
 /**
  * 选项面板：屏幕下半部弹出 2-3 个横向长条按钮（白底圆角深灰字）。
@@ -30,25 +30,13 @@ export class ChoiceView {
             }
             options.forEach((text, i) => {
                 const bar = block(this.root, 640, barH, Col.white, 18, 0, y, Col.line);
-                const l = label(bar, text, { size: 28, color: Col.ink, wrap: 540, lineHeight: 38 });
-                // 包裹文字默认顶锚点：双行时会溢出长条下边缘。改为中心锚点，单行/双行都垂直居中
-                const lt = l.node.getComponent(UITransform);
-                if (lt) lt.anchorPoint = new Vec2(0.5, 0.5);
-                l.node.setPosition(0, 0);
+                labelInBox(bar, text, 540, barH, { size: 28, color: Col.ink, lineHeight: 38 });
                 bar.on(Node.EventType.TOUCH_END, () => {
                     if (this.busy) return;
                     this.busy = true;
                     // 高亮选中项：粉底 + 粉框
                     const g = bar.getComponent(Graphics);
-                    if (g) {
-                        g.clear();
-                        g.fillColor = Col.pinkSoft;
-                        g.strokeColor = Col.pink;
-                        g.lineWidth = 3;
-                        g.roundRect(-320, -50, 640, 100, 18);
-                        g.fill();
-                        g.stroke();
-                    }
+                    if (g) paintBlock(g, 640, 100, Col.pinkSoft, 18, Col.pink, 3);
                     setTimeout(() => {
                         this.root.active = false;
                         this.root.removeAllChildren();

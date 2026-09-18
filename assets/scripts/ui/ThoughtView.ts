@@ -1,5 +1,5 @@
-import { Graphics, Node, tween, UIOpacity, Vec3 } from 'cc';
-import { block, Col, DW, label, layer, ui } from '../core/UITheme';
+import { Graphics, Label, Node, tween, UIOpacity, Vec3 } from 'cc';
+import { block, Col, labelInBox, layer, ui } from '../core/UITheme';
 
 /**
  * 云朵想法气泡：浮在妈妈头顶，斜体文字，自动停留后淡出。
@@ -8,18 +8,17 @@ import { block, Col, DW, label, layer, ui } from '../core/UITheme';
  */
 export class ThoughtView {
     root: Node;
-    private textL: ReturnType<typeof label>;
+    private textL: Label;
 
     constructor(parent: Node) {
         this.root = layer(parent, 'thought');
         const W = 360; const H = 240;
-        // 主体气泡（文字安全区 = W-80 × H-60，几何中心即视觉中心）
+        // 主体气泡（文字安全区 = W-80 × H-60，与气泡同中心，框内居中）
         block(this.root, W, H, Col.white, 30, 0, 10, Col.pink, 3);
         // 左下角尾巴（仿原云朵图的两个渐小圆）
         this.tail(14, -W / 2 + 48, -H / 2 - 16);
         this.tail(8, -W / 2 + 22, -H / 2 - 46);
-        // 顶锚点：两行文字（2×32=64px）时正好居中于气泡
-        this.textL = label(this.root, '', { size: 24, color: Col.ink, italic: true, wrap: W - 80, lineHeight: 32 }, 0, 42);
+        this.textL = labelInBox(this.root, '', W - 80, H - 60, { size: 24, color: Col.ink, italic: true, lineHeight: 32 }, 0, 10);
         this.root.active = false;
     }
 

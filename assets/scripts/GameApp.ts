@@ -12,6 +12,7 @@ import { PhoneView } from './ui/PhoneView';
 import { PopupView } from './ui/PopupView';
 import { Portraits } from './ui/Portraits';
 import { SceneView } from './ui/SceneView';
+import { SleepRoomView } from './ui/SleepRoomView';
 import { TaskBar } from './ui/TaskBar';
 import { ThoughtView } from './ui/ThoughtView';
 
@@ -38,6 +39,8 @@ export class GameApp extends Component {
         const dialog = new DialogView(root, this);
         const choices = new ChoiceView(root);
         const taskbar = new TaskBar(root);
+        // 睡眠区小游戏在任务卡之上、HUD 之下（保留孕周徽章）
+        const sleepRoom = new SleepRoomView(root);
         const hud = new Hud(root);
         const phone = new PhoneView(root);
         const popup = new PopupView(root);
@@ -46,7 +49,7 @@ export class GameApp extends Component {
 
         const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay };
 
-        // 任务卡点击：购物清单弹窗；布置类小游戏本期跳过，直接完成
+        // 任务卡点击：购物清单弹窗；布置安全睡眠区进入拖拽小游戏；尿布台本期跳过，直接完成
         taskbar.onTask = async (id) => {
             if (id === 'list') {
                 await popup.custom({
@@ -55,6 +58,8 @@ export class GameApp extends Component {
                     build: (content) => buildShoppingList(content),
                     buttons: [{ label: '收好了', value: 'ok', primary: true }],
                 });
+            } else if (id === 'sleep') {
+                await sleepRoom.play();
             } else {
                 await sleep(300);
             }
