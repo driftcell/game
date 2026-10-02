@@ -33,7 +33,7 @@ export class GameApp extends Component {
         rt.setContentSize(DW, DH);
         root.setPosition(0, 0);
 
-        // 自下而上：场景 < 立绘 < 对白 < 选项 < 任务卡 < HUD < 手机 < 弹窗 < 过场
+        // 自下而上：场景 < 立绘 < 对白 < 选项 < 任务卡 < HUD < 手机 < 弹窗 < 气泡 < 过场
         const scene = new SceneView(root);
         const portraits = new Portraits(root);
         const dialog = new DialogView(root, this);
@@ -44,10 +44,11 @@ export class GameApp extends Component {
         const hud = new Hud(root);
         const phone = new PhoneView(root);
         const popup = new PopupView(root);
-        const overlay = new Overlay(root);
         const thought = new ThoughtView(root);
+        const overlay = new Overlay(root);
 
         const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay };
+        (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
 
         // 任务卡点击：购物清单弹窗；布置安全睡眠区进入拖拽小游戏；尿布台本期跳过，直接完成
         taskbar.onTask = async (id) => {

@@ -254,8 +254,15 @@ export class SleepRoomView {
         this.dragDef = null;
     }
 
-    private onCancel(): void {
-        if (this.ghost) { this.ghost.destroy(); this.ghost = null; }
+    private onCancel(e: EventTouch): void {
+        // 拖到面板外松手时 Cocos 触发 CANCEL 而非 END，仍需处理放置
+        if (this.axis === 'drag' && this.ghost && this.dragDef) {
+            const p = this.toLocal(e);
+            this.drop(p);
+        } else if (this.ghost) {
+            this.ghost.destroy();
+            this.ghost = null;
+        }
         this.axis = 'none';
         this.dragDef = null;
     }
@@ -282,6 +289,21 @@ export class SleepRoomView {
             tween(ghost).to(0.2, { position: this.cardHome(def) }).call(() => ghost.destroy()).start();
             if (!def.safe && def.hint) this.toast(def.hint);
         }
+    }
+
+    /** 调试：直接放置一个安全物品（跳过拖拽动画） */
+    debugPlace(key: string): void {
+        const def = ITEMS.find((d) => d.key === key);
+        if (!def || !def.safe || this.placed.has(key)) return;
+        const s = def.scale ?? 1;
+        const slot = def.slot!;
+        const node = Img.sprite(this.placedLayer, key, 100 * s, slot.x, slot.y);
+        opacity(node).opacity = 255;
+        this.placed.add(key);
+        this.placedNodes.set(key, node);
+        this.restack();
+        this.renderPage();
+        if (this.placed.size >= SAFE_COUNT) this.finish();
     }
 
     private cardHome(def: ItemDef): Vec3 {

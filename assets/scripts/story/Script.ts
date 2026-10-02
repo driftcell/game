@@ -1,4 +1,4 @@
-import { Color, HorizontalTextAlignment, Label, Node } from 'cc';
+import { Color, Graphics, HorizontalTextAlignment, Label, Node } from 'cc';
 import { GameState, SupporterType } from '../core/GameState';
 import { block, Col, label } from '../core/UITheme';
 import { Ctx, Step } from './Runner';
@@ -179,7 +179,16 @@ export function chapter1Steps(): Step[] {
                     label(cardN, '今天完成：3 件', { size: 34, bold: true, color: Col.ink }, 0, 130);
                     const rows = ['布置睡眠区', '布置尿布台', '查看购物清单'];
                     rows.forEach((t, i) => {
-                        label(cardN, '✓', { size: 30, bold: true, color: Col.pink }, -140, 40 - i * 64);
+                        const check = cardN.getChildByName('check' + i) || new Node('check' + i);
+                        cardN.addChild(check);
+                        check.setPosition(-140, 40 - i * 64);
+                        const cg = check.addComponent(Graphics);
+                        cg.lineWidth = 5;
+                        cg.strokeColor = Col.pink;
+                        cg.moveTo(-10, 0);
+                        cg.lineTo(-3, -8);
+                        cg.lineTo(10, 8);
+                        cg.stroke();
                         label(cardN, t, { size: 28, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT }, -100, 40 - i * 64);
                     });
                 }, 2400);
@@ -194,7 +203,7 @@ export function chapter1Steps(): Step[] {
             k: 'ui', run: async (ctx) => {
                 ctx.dialog.hide();
                 ctx.portraits.hide();
-                await ctx.overlay.showEnd('第二章｜为生产做准备', '内容制作中，敬请期待');
+                await ctx.overlay.showEnd('第二章｜为生产做准备', '内容制作中，敬请期待', '—— 第一章完 ——');
             },
         },
     ];

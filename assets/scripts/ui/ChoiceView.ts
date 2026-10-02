@@ -1,4 +1,4 @@
-import { Graphics, Node } from 'cc';
+import { Color, Graphics, Node } from 'cc';
 import { block, Col, DH, label, labelInBox, layer, paintBlock } from '../core/UITheme';
 
 /**
@@ -25,7 +25,8 @@ export class ChoiceView {
             const total = options.length * (barH + gap) + hintH;
             let y = -H / 2 + 90 + total - barH / 2;
             if (hint) {
-                label(this.root, hint, { size: 26, color: Col.gray }, 0, y + barH / 2 + 34);
+                const hintBg = block(this.root, 400, 44, new Color(255, 255, 255, 200), 22, 0, y + barH / 2 + 34);
+                label(hintBg, hint, { size: 26, color: Col.gray }, 0, 0);
                 y -= hintH;
             }
             options.forEach((text, i) => {

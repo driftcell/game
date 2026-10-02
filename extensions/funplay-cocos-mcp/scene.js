@@ -4,6 +4,7 @@ module.paths.push(Editor.App.path + '/node_modules');
 
 const cc = require('cc');
 const { attachPrefabMetadata, normalizePrefabNodeLayers } = require('./lib/prefab-metadata');
+const { captureScriptExecution } = require('./lib/script-execution');
 
 const {
   Node,
@@ -30,6 +31,17 @@ const {
   AnimationClip,
 } = cc;
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
+async function callPreviewRuntimeTool(name) {
+  // Keep legacy scene-script entrypoints, but route them back to the editor's
+  // Game View controller rather than pausing this edit-scene director.
+  const output = await Editor.Message.request('funplay-cocos-mcp', 'call-tool', name, {});
+  const result = typeof output === 'string' ? JSON.parse(output) : output;
+  if (!result || result.ok !== true) {
+    throw new Error((result && result.summary) || `Preview tool '${name}' failed.`);
+  }
+  return result.data;
+}
 
 function getScene() {
   const scene = director.getScene();
@@ -586,23 +598,23 @@ function plain(value, depth = 0, seen = new WeakSet()) {
   return String(value);
 }
 
-async function executeUserCode(code, args) {
+async function executeUserCode(code, args, scriptConsole = console) {
   const scene = getScene();
-  const runner = new AsyncFunction('require', 'cc', 'Editor', 'scene', 'director', 'args', `
+  const runner = new AsyncFunction('require', 'cc', 'Editor', 'scene', 'director', 'args', 'console', `
     const module = { exports: {} };
     const exports = module.exports;
     ${code}
     if (typeof run === 'function') {
-      return await run({ cc, Editor, scene, director, args });
+      return await run({ cc, Editor, scene, director, args, console });
     }
     if (typeof module.exports === 'function') {
-      return await module.exports({ cc, Editor, scene, director, args });
+      return await module.exports({ cc, Editor, scene, director, args, console });
     }
     if (module.exports && typeof module.exports.run === 'function') {
-      return await module.exports.run({ cc, Editor, scene, director, args });
+      return await module.exports.run({ cc, Editor, scene, director, args, console });
     }
   `);
-  return await runner(require, cc, global.Editor, scene, director, args || {});
+  return await runner(require, cc, global.Editor, scene, director, args || {}, scriptConsole);
 }
 
 exports.methods = {
@@ -1355,6 +1367,7 @@ exports.methods = {
   async getRuntimeState() {
     const scheduler = getScheduler();
     return {
+      scope: 'editScene',
       sceneName: getScene().name,
       paused: typeof director.isPaused === 'function' ? director.isPaused() : false,
       timeScale: scheduler && typeof scheduler.getTimeScale === 'function' ? scheduler.getTimeScale() : 1,
@@ -1376,6 +1389,7 @@ exports.methods = {
     return {
       sceneName: getScene().name,
       runtime: {
+        scope: 'editScene',
         paused: typeof director.isPaused === 'function' ? director.isPaused() : false,
         timeScale: scheduler && typeof scheduler.getTimeScale === 'function' ? scheduler.getTimeScale() : 1,
         totalFrames: typeof director.getTotalFrames === 'function' ? director.getTotalFrames() : undefined,
@@ -1402,17 +1416,11 @@ exports.methods = {
   },
 
   async pauseRuntime() {
-    if (typeof director.pause === 'function') {
-      director.pause();
-    }
-    return await exports.methods.getRuntimeState();
+    return await callPreviewRuntimeTool('pause_runtime');
   },
 
   async resumeRuntime() {
-    if (typeof director.resume === 'function') {
-      director.resume();
-    }
-    return await exports.methods.getRuntimeState();
+    return await callPreviewRuntimeTool('resume_runtime');
   },
 
   async setTimeScale(options = {}) {
@@ -1592,11 +1600,12 @@ exports.methods = {
       throw new Error('code is required.');
     }
 
-    const result = await executeUserCode(code, options.args || {});
-    return {
-      ok: true,
-      result: plain(result),
-      sceneName: getScene().name,
+    const execute = async (scriptConsole) => {
+      const result = await executeUserCode(code, options.args || {}, scriptConsole);
+      return { ok: true, result: plain(result), sceneName: getScene().name };
     };
+    return options.captureActivity
+      ? captureScriptExecution(execute, { context: 'scene', targetConsole: console })
+      : execute(console);
   },
 };

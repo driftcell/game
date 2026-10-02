@@ -6,6 +6,63 @@ This project follows a simple changelog format inspired by [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-09-19
+
+### Fixed
+
+- Fixed Claude Code one-click configuration on Windows by writing forward-slash project scope paths and reusing existing scope keys regardless of drive-letter case. Contributed in [#22](https://github.com/FunplayAI/funplay-cocos-mcp/pull/22).
+
+## [0.6.3] - 2026-09-12
+
+### Fixed
+
+- Fixed `Object.hasOwn is not a function` in older Cocos Creator editor runtimes (reported on 3.8.3), affecting Configure + Skills, JSONC configuration, and project prompts. Use compatible own-property checks while retaining duplicate-key validation and concurrent-edit protection. Contributed in [#21](https://github.com/FunplayAI/funplay-cocos-mcp/pull/21).
+
+## [0.6.2] - 2026-09-11
+
+### Added
+
+- Added OpenCode one-click MCP configuration and project-local Skills support (`.opencode/skills`), contributed in [#19](https://github.com/FunplayAI/funplay-cocos-mcp/pull/19).
+- OpenCode configuration reads and updates JSON/JSONC with comments and trailing commas, preserves unrelated text and settings, and rejects malformed or duplicate-key configurations without overwriting them.
+
+## [0.6.1] - 2026-09-10
+
+### Fixed
+
+- Fixed Game View preview started through MCP leaving the native toolbar in a stopped or wrong-platform state, which disabled manual pause controls. Preview starts and mode changes now use the toolbar's own logic, repair legacy state mismatches, and verify the actual preview state.
+- Routed `pause_runtime` and `resume_runtime` to the Game View preview controller instead of the edit-scene director. Repeated start/pause/resume calls are idempotent; stopped previews, rejected operations, busy or unavailable toolbars now report explicit errors.
+- `get_runtime_state` and scene validation now report Game View running/paused state and toolbar synchronization. Edit-scene frame/time-scale counters remain in performance snapshots and are explicitly labeled to avoid confusing them with preview state.
+
+## [0.6.0] - 2026-09-07
+
+### Added
+
+- Added isolated per-script console capture for editor/scene execution and compatibility aliases. Logs survive failures and remain available when MCP console printing is disabled; optional execution metadata preserves existing tool return data.
+- Added a project-persisted Print MCP logs toggle in Settings. It immediately controls extension and HTTP server console printing, including startup messages, while preserving Recent Activity, internal diagnostics, and live MCP connections.
+- Added project-derived default ports and project-specific MCP entry names. Existing fixed-port configurations remain compatible; temporary fallback endpoints must be pinned before one-click configuration.
+- Added per-client Project Skills installation, status, diff, backup, and restore for Codex, Claude Code, Cursor, Qoder, and Kimi Code. Codex now uses `.agents/skills`, with protected migration of legacy `.codex/skills` built-ins.
+- Added parameterized project workflows from `mcp-prompts/*.md`, refreshed on list/get, with required-argument validation, bounded file discovery, and visible parse warnings.
+
+### Changed
+
+- Recent Activity now preserves result hierarchy, array items, and scalar values instead of selecting six flattened fields. Script cards separate summaries, execution logs, and return values; expandable branches survive refreshes, and large/sensitive results stay bounded and redacted.
+- Redesigned MCP Server, Tool Exposure, Settings, and Project Skills with consistent headings, aligned controls, lightweight sections, and responsive layouts. Skills show only available actions with file/backup details collapsed; extension update controls are in Settings.
+- Removed all Output sections and the standalone Activity/log-viewing window and menu, while retaining the dashboard's Recent Activity with bounded result previews. Clear removes only interaction history. Action notices preserve success/failure feedback; backend diagnostic tools and resources are unchanged.
+- Added Configure + Skills for supported clients, installing only missing built-ins and preserving existing or locally modified copies, including when files change during setup.
+- One-click configuration preserves other projects and manually repointed entries, checks for concurrent edits, and writes configuration atomically. Claude Code entries are scoped to the nearest Git root.
+- Dashboard Skills notices now follow the selected supported client. Project Skills includes a client selector and explicit managed-directory paths.
+
+### Fixed
+
+- Fixed [#18](https://github.com/FunplayAI/funplay-cocos-mcp/issues/18): corrected the built-in UI Skill's UI system overview link to the working Cocos Creator 3.8 manual URL, while retaining valid component reference links. Upgraded the UI Skill template to v2 and preserved recognition of unmodified v1 installs as updateable, including those without managed metadata.
+
+## [0.5.2] - 2026-09-03
+
+### Added
+
+- Added one-click MCP client configuration for Qoder and Kimi Code, including their documented custom configuration-directory environment variables.
+- Added a dashboard alert that names built-in project Skills that are not installed, have updates available, or contain local modifications, with a direct link to Project Skills management.
+
 ## [0.5.1] - 2026-08-18
 
 ### Fixed

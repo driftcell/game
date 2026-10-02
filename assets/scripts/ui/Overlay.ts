@@ -94,12 +94,12 @@ export class Overlay {
     }
 
     /** 结尾黑场文字 */
-    async showEnd(title: string, subtitle: string): Promise<void> {
+    async showEnd(title: string, subtitle: string, footer = ''): Promise<void> {
         await this.fadeIn(new Color(20, 18, 24), 0.8);
         this.stage.active = true;
         this.stage.removeAllChildren();
         label(this.stage, title, { size: 46, bold: true, color: Col.white }, 0, 90);
         label(this.stage, subtitle, { size: 28, color: new Color(200, 190, 198) }, 0, 20);
-        label(this.stage, '—— 第一章完 ——', { size: 24, color: new Color(150, 140, 148) }, 0, -60);
+        if (footer) label(this.stage, footer, { size: 24, color: new Color(150, 140, 148) }, 0, -60);
     }
 }

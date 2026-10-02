@@ -1,4 +1,4 @@
-import { Label, Node, Sprite, tween, UIOpacity, Vec3 } from 'cc';
+import { Color, Label, Node, Sprite, tween, UIOpacity, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, Col, DH, label, layer, ui } from '../core/UITheme';
 
@@ -50,7 +50,8 @@ export class TaskBar {
             });
             x += cw + gap;
         }
-        this.counterL = label(this.root, '今天完成：0 件', { size: 26, color: Col.gray }, 0, y - ch / 2 - 46);
+        const counterBg = block(this.root, 300, 44, new Color(255, 255, 255, 180), 22, 0, y - ch / 2 - 46);
+        this.counterL = label(counterBg, '今天完成：0 件', { size: 26, color: Col.gray }, 0, 0);
     }
 
     markDone(id: string): void {
