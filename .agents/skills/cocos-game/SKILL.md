@@ -10,18 +10,19 @@ Project: `/Users/driftcell/Projects/game`, Cocos Creator **3.8.8**, portrait des
 
 ## Build (compile game)
 
-Use the Cocos CLI. Output goes to `dist/web-desktop/` — move contents up to `dist/` to match repo layout:
+Always use the repo script — it builds the **web-mobile** platform directly into `dist/` (full-screen canvas):
 
 ```bash
-/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator \
-  --project /Users/driftcell/Projects/game \
-  --build "platform=web-desktop;buildPath=project://dist"
-# then flatten output:
-rm -rf dist/assets dist/cocos-js dist/src dist/application*.js dist/index*.js dist/index.html dist/style*.css dist/favicon.ico
-mv dist/web-desktop/* dist/ && rmdir dist/web-desktop
+./scripts/build-web.sh
 ```
 
-Build takes ~3s incremental, ~27s cold. All TypeScript errors from `run_script_diagnostics` pointing to engine `cc.d.ts`/`jsb.d.ts` are pre-existing noise — only care about errors under `assets/scripts/`.
+Never build `web-desktop` for `dist/`: its template hard-codes a fixed 1280x960 canvas, which shows as a blank pink screen on phones (this exact regression shipped once). Build takes ~3s incremental, ~27s cold. All TypeScript errors from `run_script_diagnostics` pointing to engine `cc.d.ts`/`jsb.d.ts` are pre-existing noise — only care about errors under `assets/scripts/`.
+
+Local verification: `cd dist && python3 -m http.server 8931`, open with `playwright-cli open --mobile http://localhost:8931`.
+
+### Sprite sizing trap (whiteSF)
+
+`addComponent(Sprite)` defaults to `sizeMode = TRIMMED`; assigning `whiteSF()` (1x1) then silently shrinks the node to 1x1. Always set `sp.sizeMode = Sprite.SizeMode.CUSTOM` before assigning a spriteFrame. `Img.sprite()` already does this; raw `addComponent(Sprite)` call sites must do it manually.
 
 ## Preview
 
@@ -51,13 +52,15 @@ then `playwright-cli reload` the preview tab.
 
 Viewport 480x900 works well: `playwright-cli resize 480 900`.
 
-Canvas coordinate mapping (viewport 480x900, canvas rect left=-400 top=115, 1280x720, scale = 720/1624 ≈ 0.4433):
+Canvas coordinate mapping (web-mobile build, viewport 480x900, canvas fills it, scale = 900/1624 ≈ 0.5542, center (240, 450)):
 
 ```js
 // game (gx, gy, center-origin, y-up) -> client (x, y):
-x = 240 + gx * 0.4433
-y = 475 - gy * 0.4433
+x = 240 + gx * 0.5542
+y = 450 - gy * 0.5542
 ```
+
+State polling beats fixed timing for fast-forwarding (typewriter speed varies). Check `Canvas/GameApp/{dialog,choices,taskbar,sleeproom,popup}` node `.active`, click dialog when active, stop when choices/taskbar appear.
 
 ### Drag-and-drop (SleepRoomView)
 

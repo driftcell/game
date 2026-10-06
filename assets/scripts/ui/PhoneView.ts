@@ -34,8 +34,9 @@ export class PhoneView {
         block(this.panel, panelW, 560, Col.white, 24);
         // 小智头部
         Img.sprite(this.panel, 'xiaozhi', 110, -panelW / 2 + 90, 560 / 2 - 90);
-        label(this.panel, '小智', { size: 30, bold: true, color: Col.ink }, -panelW / 2 + 210, 560 / 2 - 70);
-        label(this.panel, '新的章节已解锁', { size: 22, color: Col.gray }, -panelW / 2 + 210, 560 / 2 - 108);
+        // 头像右缘 -panelW/2+145，文字整体右移避免压住头像（label 为中心锚点）
+        label(this.panel, '小智', { size: 30, bold: true, color: Col.ink }, -panelW / 2 + 250, 560 / 2 - 70);
+        label(this.panel, '新的章节已解锁', { size: 22, color: Col.gray }, -panelW / 2 + 250, 560 / 2 - 108);
         // 任务卡
         const card = block(this.panel, panelW - 80, 240, Col.pinkSoft, 20, 0, -10, Col.pink);
         labelInBox(card, title, panelW - 140, 116, { size: 32, bold: true, color: Col.pinkDeep, lineHeight: 42 }, 0, 34);

@@ -16,6 +16,7 @@ export class Overlay {
         const ft = this.fadeN.addComponent(UITransform);
         ft.setContentSize(20000, 20000);
         const sp = this.fadeN.addComponent(Sprite);
+        sp.sizeMode = Sprite.SizeMode.CUSTOM; // 防 TRIMMED 把 20000x20000 改成贴图原始 1x1
         sp.spriteFrame = whiteSF();
         sp.color = Color.BLACK;
         this.fadeOp = this.fadeN.addComponent(UIOpacity);

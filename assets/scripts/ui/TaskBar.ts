@@ -39,6 +39,7 @@ export class TaskBar {
             card.addChild(radioN);
             ui(radioN, 40, 40, cw / 2 - 30, ch / 2 - 30);
             const sp = radioN.addComponent(Sprite);
+            sp.sizeMode = Sprite.SizeMode.CUSTOM; // 保住 ui() 设定的 40x40
             const sf = Img.get('radio_off');
             if (sf) sp.spriteFrame = sf;
             sp.color = Col.pink;

@@ -86,7 +86,9 @@ export class DialogView {
         this.card.setPosition(CARD_X, this.baseY + cardH / 2);
         paintBlock(this.cardG, CARD_W, cardH, Col.white, 24, Col.line, 2);
         const top = cardH / 2;
-        this.nameL.node.setPosition(-CARD_W / 2 + PAD_X, top - PAD_TOP - NAME_H / 2);
+        // nameL 是 labelInBox（锚点中心）：x 给框中心 0，框宽 CARD_W-2*PAD_X 刚好落在安全区内
+        this.nameL.node.setPosition(0, top - PAD_TOP - NAME_H / 2);
+        // textL 是 labelAuto（锚点 (0,1)）：x 给文字左缘
         this.textL.node.setPosition(-CARD_W / 2 + PAD_X, top - PAD_TOP - NAME_H);
     }
 

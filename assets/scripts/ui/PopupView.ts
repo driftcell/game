@@ -58,20 +58,31 @@ export class PopupView {
         this.card.addChild(boxN);
         ui(boxN, 500, 88, 0, alt ? 70 : 50);
         const sp = boxN.addComponent(Sprite);
+        sp.sizeMode = Sprite.SizeMode.CUSTOM; // 防 TRIMMED 把命中区缩成贴图原始 1x1（EditBox 会点不中）
         sp.spriteFrame = whiteSF();
         sp.color = new Color(247, 247, 247);
+        // 描边让输入框在白卡上可辨识
+        const borderN = new Node('border');
+        boxN.addChild(borderN);
+        ui(borderN, 500, 88);
+        const bg = borderN.addComponent(Graphics);
+        bg.strokeColor = Col.line;
+        bg.lineWidth = 2;
+        bg.roundRect(-250, -44, 500, 88, 12);
+        bg.stroke();
         const eb = boxN.addComponent(EditBox);
         eb.backgroundImage = whiteSF();
         eb.placeholder = cfg.placeholder;
         eb.inputMode = EditBox.InputMode.SINGLE_LINE;
         eb.returnType = EditBox.KeyboardReturnType.DONE;
-        const tl = label(boxN, '', { size: 30, color: Col.ink });
-        const pl = label(boxN, cfg.placeholder, { size: 30, color: Col.gray });
-        // EditBox 按左上角摆放 textLabel/placeholderLabel，锚点必须是 (0,1)
+        const tl = label(boxN, '', { size: 30, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT });
+        const pl = label(boxN, cfg.placeholder, { size: 30, color: Col.gray, hAlign: HorizontalTextAlignment.LEFT });
+        // EditBox 按左上角摆放 textLabel/placeholderLabel，锚点必须是 (0,1)；左对齐并留 20 内边距
         for (const l of [tl, pl]) {
+            l.node.setPosition(-230, 0);
             const t = l.node.getComponent(UITransform)!;
             t.setAnchorPoint(0, 1);
-            t.setContentSize(500, 88);
+            t.setContentSize(460, 88);
             l.verticalAlign = VerticalTextAlignment.TOP;
         }
         eb.textLabel = tl;
@@ -111,6 +122,7 @@ export class PopupView {
             row.addChild(radioN);
             ui(radioN, 36, 36, 200, 0);
             const radio = radioN.addComponent(Sprite);
+            radio.sizeMode = Sprite.SizeMode.CUSTOM; // 保住 ui() 设定的 36x36
             this.setRadio(radio, i === 0);
             row.on(Node.EventType.TOUCH_END, () => {
                 selected = i;

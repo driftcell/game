@@ -1,6 +1,6 @@
 import { Color, Graphics, HorizontalTextAlignment, Label, Node } from 'cc';
 import { GameState, SupporterType } from '../core/GameState';
-import { block, Col, label } from '../core/UITheme';
+import { block, Col, label, labelInBox } from '../core/UITheme';
 import { Ctx, Step } from './Runner';
 
 /* ---------------------------------- 开局设置 ---------------------------------- */
@@ -189,7 +189,7 @@ export function chapter1Steps(): Step[] {
                         cg.lineTo(-3, -8);
                         cg.lineTo(10, 8);
                         cg.stroke();
-                        label(cardN, t, { size: 28, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT }, -100, 40 - i * 64);
+                        labelInBox(cardN, t, 300, 44, { size: 28, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT }, 40, 40 - i * 64);
                     });
                 }, 2400);
             },
