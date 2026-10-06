@@ -1,14 +1,19 @@
-import { Color, Graphics, HorizontalTextAlignment, Label, Node } from 'cc';
+import { Color, Graphics, HorizontalTextAlignment, Node } from 'cc';
 import { GameState, SupporterType } from '../core/GameState';
 import { Col, label, labelInBox } from '../core/UITheme';
 import { Ctx, Step } from './Runner';
 
-/* ---------------------------------- 开局设置 ---------------------------------- */
+/** 剧本段落：存档断点的最小单位。每段开头必须自带 scene/badge 步骤，保证读档重跑能重建画面 */
+export interface Segment {
+    id: string;
+    label: string;   // 存档槽位展示名
+    steps: () => Step[];
+}
 
-export function openingSteps(): Step[] {
+/* ---------------------------------- 序幕 ---------------------------------- */
+
+function openingSteps(): Step[] {
     return [
-        { k: 'ui', run: async (ctx) => { await ctx.overlay.titleScreen(); } },
-
         { k: 'dialog', who: 'xiaozhi', text: '欢迎来到《和你一起长大30天》。在故事开始前，你希望大家怎么称呼你？' },
         {
             k: 'ui', run: async (ctx) => {
@@ -56,7 +61,7 @@ export function openingSteps(): Step[] {
 
 /* ---------------------------------- 第一章 ---------------------------------- */
 
-export function chapter1Steps(): Step[] {
+function ch1IntroSteps(): Step[] {
     return [
         { k: 'scene', s: 'living-day' },
         { k: 'ui', run: async (ctx) => { await ctx.overlay.chapterCover('第一章｜宝宝的小窝', '孕38周+2天'); } },
@@ -97,6 +102,13 @@ export function chapter1Steps(): Step[] {
                 },
             ],
         },
+    ];
+}
+
+function ch1TaskSteps(): Step[] {
+    return [
+        { k: 'scene', s: 'living-day' },
+        { k: 'badge', text: '孕38周+2天' },
 
         // 三个可点击任务（睡眠区为拖拽布置小游戏；尿布台本期跳过，点击直接完成；购物清单为分类拖拽小游戏）
         {
@@ -112,7 +124,11 @@ export function chapter1Steps(): Step[] {
                 ctx.taskbar.hide();
             },
         },
+    ];
+}
 
+function ch1NightSteps(): Step[] {
+    return [
         // 章节衔接：夜晚
         {
             k: 'ui', run: async (ctx) => {
@@ -124,6 +140,8 @@ export function chapter1Steps(): Step[] {
                 await ctx.overlay.fadeOut(0.5);
             },
         },
+        { k: 'badge', text: '孕38周+2天' },
+
         { k: 'dialog', who: 'supporter', text: '{baby}睡觉和换尿布的地方都准备好了。' },
         {
             k: 'choices',
@@ -148,6 +166,15 @@ export function chapter1Steps(): Step[] {
                 },
             ],
         },
+    ];
+}
+
+function ch1EndSteps(): Step[] {
+    return [
+        // 读档重跑时重建夜景
+        { k: 'scene', s: 'living-night' },
+        { k: 'ui', run: async (ctx) => { ctx.scene.nightGlow(-60, 60); } },
+        { k: 'badge', text: '孕38周+2天' },
 
         {
             k: 'ui', run: async (ctx) => {
@@ -186,3 +213,13 @@ export function chapter1Steps(): Step[] {
         },
     ];
 }
+
+/* ---------------------------------- 段落注册表（顺序即剧情顺序） ---------------------------------- */
+
+export const SEGMENTS: Segment[] = [
+    { id: 'opening', label: '序幕', steps: openingSteps },
+    { id: 'ch1-intro', label: '第一章｜宝宝的小窝', steps: ch1IntroSteps },
+    { id: 'ch1-tasks', label: '第一章｜布置小窝', steps: ch1TaskSteps },
+    { id: 'ch1-night', label: '第一章｜夜晚', steps: ch1NightSteps },
+    { id: 'ch1-end', label: '第一章｜尾声', steps: ch1EndSteps },
+];

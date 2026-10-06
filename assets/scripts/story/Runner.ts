@@ -80,10 +80,13 @@ async function runStep(ctx: Ctx, s: Step): Promise<void> {
             await ctx.hud.time.appear(s.text);
             break;
         case 'achieve':
-            GameState.achievements.push(s.name);
-            GameState.badge++;
-            GameState.save();
-            await ctx.hud.banner.show(s.name);
+            // 读档重跑时按名字去重，不重复弹绶带
+            if (GameState.achievements.indexOf(s.name) < 0) {
+                GameState.achievements.push(s.name);
+                GameState.badge++;
+                GameState.save();
+                await ctx.hud.banner.show(s.name);
+            }
             break;
         case 'ui':
             await s.run(ctx);

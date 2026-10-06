@@ -15,6 +15,8 @@ export class TimeBadge {
     }
 
     async appear(text: string): Promise<void> {
+        // 幂等：段落重跑/读档恢复时同文本不再播放翻页动画
+        if (this.root.active && this.textL.string === text) return;
         this.textL.string = text;
         this.root.active = true;
         const W = DW; const H = DH;
