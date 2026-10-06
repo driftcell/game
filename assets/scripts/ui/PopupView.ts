@@ -75,18 +75,33 @@ export class PopupView {
         eb.placeholder = cfg.placeholder;
         eb.inputMode = EditBox.InputMode.SINGLE_LINE;
         eb.returnType = EditBox.KeyboardReturnType.DONE;
-        const tl = label(boxN, '', { size: 30, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT });
-        const pl = label(boxN, cfg.placeholder, { size: 30, color: Col.gray, hAlign: HorizontalTextAlignment.LEFT });
-        // EditBox 按左上角摆放 textLabel/placeholderLabel，锚点必须是 (0,1)；左对齐并留 20 内边距
+        // 用 Overflow.CLAMP 的框内文本：label() 的 Overflow.NONE 会自适应文字导致 vAlign 失效
+        const tl = labelInBox(boxN, '', 460, 88, { size: 30, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT });
+        const pl = labelInBox(boxN, cfg.placeholder, 460, 88, { size: 30, color: Col.gray, hAlign: HorizontalTextAlignment.LEFT });
+        // EditBox 按左上角摆放 textLabel/placeholderLabel，锚点必须是 (0,1)。
+        // 节点 y=+44 使内容框（88 高）恰好覆盖输入框中线，文字垂直居中
         for (const l of [tl, pl]) {
-            l.node.setPosition(-230, 0);
             const t = l.node.getComponent(UITransform)!;
             t.setAnchorPoint(0, 1);
             t.setContentSize(460, 88);
-            l.verticalAlign = VerticalTextAlignment.TOP;
+            l.node.setPosition(-230, 44);
+            l.verticalAlign = VerticalTextAlignment.CENTER;
         }
         eb.textLabel = tl;
         eb.placeholderLabel = pl;
+        // EditBox 初始化时自带 TEXT_LABEL/PLACEHOLDER_LABEL 两个默认白字节点，
+        // 替换引用后必须销毁，否则残留白色占位文字浮在输入框左上角
+        for (const nm of ['TEXT_LABEL', 'PLACEHOLDER_LABEL']) {
+            const stale = boxN.getChildByName(nm);
+            if (stale && stale !== tl.node && stale !== pl.node) stale.destroy();
+        }
+        // 引擎在 addComponent 时按默认 inputMode.ANY 创建 textarea，单行文字在 DOM 里贴顶；
+        // 行高设为输入框全高，让编辑时文字垂直居中（与静止态占位文字一致）
+        if (typeof document !== 'undefined') {
+            document.querySelectorAll('input.cocosEditBox, textarea.cocosEditBox').forEach((el) => {
+                (el as HTMLElement).style.lineHeight = '88px';
+            });
+        }
 
         return new Promise<PopupResult>((resolve) => {
             const done = (altPicked: boolean) => {
@@ -108,7 +123,11 @@ export class PopupView {
     pick(cfg: PickCfg): Promise<PopupResult> {
         const W = 600;
         const rowH = 92;
-        const H = 92 + cfg.options.length * (rowH + 14) + 130;
+        const ROW_GAP = 14;
+        const BUTTON_H = 92;
+        const BOTTOM_PAD = 24;
+        const LIST_GAP = 28; // 最后一个选项与按钮的间距
+        const H = 92 + cfg.options.length * (rowH + ROW_GAP) + LIST_GAP + BUTTON_H + BOTTOM_PAD;
         const header = this.open(W, H);
         labelInBox(header, cfg.title, 520, 92, { size: 32, bold: true, color: Col.white, lineHeight: 40 });
 
@@ -142,14 +161,14 @@ export class PopupView {
                 });
             });
             rows.push({ row, textL, radio });
-            y -= rowH + 14;
+            y -= rowH + ROW_GAP;
         });
 
         return new Promise<PopupResult>((resolve) => {
             button(this.card, '确 定', () => {
                 this.close();
                 resolve({ ok: true, value: cfg.options[selected], alt: false, index: selected });
-            }, { w: 500, h: 92, y: -H / 2 + 82 });
+            }, { w: 500, h: BUTTON_H, y: -H / 2 + BOTTOM_PAD + BUTTON_H / 2 });
         });
     }
 

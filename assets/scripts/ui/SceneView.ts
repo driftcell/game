@@ -1,6 +1,6 @@
-import { Color, Node } from 'cc';
+import { Color, Graphics, Node } from 'cc';
 import { Img } from '../core/Assets';
-import { block, Col, DH, DW, layer } from '../core/UITheme';
+import { block, Col, DH, DW, layer, ui } from '../core/UITheme';
 
 export type SceneKind = 'pink' | 'living-day' | 'living-night';
 
@@ -37,9 +37,23 @@ export class SceneView {
         }
     }
 
-    /** 夜晚小夜灯暖光（画在压暗层之上） */
+    /** 夜晚小夜灯暖光：多层椭圆叠加成柔和光晕（单层圆角块会有生硬黄椭圆边） */
     nightGlow(x: number, y: number): void {
         if (!this.dim) return;
-        block(this.host, 300, 220, new Color(255, 226, 168, 55), 110, x, y);
+        const layers = 12;
+        const rx = 380;
+        const ry = 300;
+        for (let i = 0; i < layers; i++) {
+            const k = 1 - i / layers;
+            const w = rx * 2 * k;
+            const h = ry * 2 * k;
+            const n = new Node('glow');
+            this.host.addChild(n);
+            ui(n, w, h, x, y);
+            const g = n.addComponent(Graphics);
+            g.fillColor = new Color(255, 226, 168, 7);
+            g.ellipse(0, 0, w / 2, h / 2);
+            g.fill();
+        }
     }
 }

@@ -24,6 +24,12 @@ Local verification: `cd dist && python3 -m http.server 8931`, open with `playwri
 
 `addComponent(Sprite)` defaults to `sizeMode = TRIMMED`; assigning `whiteSF()` (1x1) then silently shrinks the node to 1x1. Always set `sp.sizeMode = Sprite.SizeMode.CUSTOM` before assigning a spriteFrame. `Img.sprite()` already does this; raw `addComponent(Sprite)` call sites must do it manually.
 
+### EditBox traps (PopupView.input)
+
+- The engine creates a `<textarea>` (not `<input>`) because `_inputMode` defaults to `ANY` at `addComponent` time; setting `SINGLE_LINE` afterwards does not recreate the DOM. Use `el.style.lineHeight = '88px'` on `.cocosEditBox` to vertically center the edited line.
+- EditBox auto-creates its own `TEXT_LABEL`/`PLACEHOLDER_LABEL` nodes; assigning custom `textLabel`/`placeholderLabel` leaves the old nodes active (white text floating in the corner) — destroy them after assigning.
+- textLabel/placeholderLabel need anchor `(0,1)`; use `labelInBox` (Overflow.CLAMP), not `label()` (Overflow.NONE ignores vAlign and top-aligns text).
+
 ## Preview
 
 - Browser preview URL: `http://localhost:7456/` (started from the Cocos editor play button).
