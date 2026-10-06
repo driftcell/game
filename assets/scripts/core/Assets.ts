@@ -35,6 +35,12 @@ const MANIFEST: Record<string, string> = {
     mobile: 'img/prop/mobile',
     basket: 'img/prop/basket',
     night_light: 'img/prop/night_light',
+    // 整理购物清单（暂无图的会 warn 并走占位首字）
+    diaper: 'img/prop/diaper',
+    wipes: 'img/prop/wipes',
+    cream: 'img/prop/cream',
+    clothes: 'img/prop/clothes',
+    powder: 'img/prop/powder',
 };
 
 class ImgRegistry {

@@ -1,6 +1,6 @@
 import { Color, Graphics, HorizontalTextAlignment, Label, Node } from 'cc';
 import { GameState, SupporterType } from '../core/GameState';
-import { block, Col, label, labelInBox } from '../core/UITheme';
+import { Col, label, labelInBox } from '../core/UITheme';
 import { Ctx, Step } from './Runner';
 
 /* ---------------------------------- 开局设置 ---------------------------------- */
@@ -54,28 +54,6 @@ export function openingSteps(): Step[] {
     ];
 }
 
-/* ---------------------------------- 购物清单 ---------------------------------- */
-
-export function buildShoppingList(content: Node): void {
-    const cols = [
-        { name: '现在就要', color: Col.pink, items: ['婴儿床垫', '尿布', '宝宝衣物', '湿巾', '护臀膏'] },
-        { name: '可以晚一点', color: new Color(240, 170, 90), items: ['床铃', '收纳筐', '小夜灯', '监控袜'] },
-        { name: '不需要', color: Col.gray, items: ['爽身粉'] },
-    ];
-    cols.forEach((c, i) => {
-        const x = -182 + i * 182;
-        block(content, 168, 56, c.color, 12, x, 212);
-        label(content, c.name, { size: 24, bold: true, color: Col.white }, x, 212);
-        let y = 150;
-        for (const it of c.items) {
-            const pill = block(content, 162, 52, Col.white, 12, x, y, Col.line);
-            label(pill, it, { size: 24, color: Col.ink });
-            y -= 64;
-        }
-    });
-    label(content, '示意清单，可左右调整的完整版后续开放', { size: 20, color: Col.gray }, 0, -230);
-}
-
 /* ---------------------------------- 第一章 ---------------------------------- */
 
 export function chapter1Steps(): Step[] {
@@ -120,7 +98,7 @@ export function chapter1Steps(): Step[] {
             ],
         },
 
-        // 三个可点击任务（睡眠区为拖拽布置小游戏；尿布台本期跳过，点击直接完成；购物清单为阅读弹窗）
+        // 三个可点击任务（睡眠区为拖拽布置小游戏；尿布台本期跳过，点击直接完成；购物清单为分类拖拽小游戏）
         {
             k: 'ui', run: async (ctx) => {
                 ctx.dialog.hide();
@@ -128,7 +106,7 @@ export function chapter1Steps(): Step[] {
                 ctx.taskbar.show([
                     { id: 'sleep', icon: 'task_sleep', label: '布置睡眠区' },
                     { id: 'diaper', icon: 'task_diaper', label: '布置尿布台' },
-                    { id: 'list', icon: 'task_list', label: '查看购物清单' },
+                    { id: 'list', icon: 'task_list', label: '整理购物清单' },
                 ]);
                 await ctx.taskbar.waitAllDone();
                 ctx.taskbar.hide();
@@ -177,7 +155,7 @@ export function chapter1Steps(): Step[] {
                 ctx.portraits.hide();
                 await ctx.overlay.card((cardN) => {
                     label(cardN, '今天完成：3 件', { size: 34, bold: true, color: Col.ink }, 0, 130);
-                    const rows = ['布置睡眠区', '布置尿布台', '查看购物清单'];
+                    const rows = ['布置睡眠区', '布置尿布台', '整理购物清单'];
                     rows.forEach((t, i) => {
                         const check = cardN.getChildByName('check' + i) || new Node('check' + i);
                         cardN.addChild(check);

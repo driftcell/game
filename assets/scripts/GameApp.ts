@@ -2,7 +2,7 @@ import { _decorator, Component, ResolutionPolicy, UITransform, view } from 'cc';
 import { Img } from './core/Assets';
 import { GameState } from './core/GameState';
 import { DH, DW, sleep } from './core/UITheme';
-import { chapter1Steps, buildShoppingList, openingSteps } from './story/Script';
+import { chapter1Steps, openingSteps } from './story/Script';
 import { Ctx, runSteps } from './story/Runner';
 import { ChoiceView } from './ui/ChoiceView';
 import { DialogView } from './ui/DialogView';
@@ -12,6 +12,7 @@ import { PhoneView } from './ui/PhoneView';
 import { PopupView } from './ui/PopupView';
 import { Portraits } from './ui/Portraits';
 import { SceneView } from './ui/SceneView';
+import { ShoppingListView } from './ui/ShoppingListView';
 import { SleepRoomView } from './ui/SleepRoomView';
 import { TaskBar } from './ui/TaskBar';
 import { ThoughtView } from './ui/ThoughtView';
@@ -39,8 +40,9 @@ export class GameApp extends Component {
         const dialog = new DialogView(root, this);
         const choices = new ChoiceView(root);
         const taskbar = new TaskBar(root);
-        // 睡眠区小游戏在任务卡之上、HUD 之下（保留孕周徽章）
+        // 睡眠区/购物清单小游戏在任务卡之上、HUD 之下（保留孕周徽章）
         const sleepRoom = new SleepRoomView(root);
+        const shoppingList = new ShoppingListView(root);
         const hud = new Hud(root);
         const phone = new PhoneView(root);
         const popup = new PopupView(root);
@@ -49,16 +51,12 @@ export class GameApp extends Component {
 
         const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay };
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
+        (window as unknown as Record<string, unknown>).__shoppingList = shoppingList;
 
-        // 任务卡点击：购物清单弹窗；布置安全睡眠区进入拖拽小游戏；尿布台本期跳过，直接完成
+        // 任务卡点击：购物清单为分类拖拽小游戏；布置安全睡眠区进入拖拽小游戏；尿布台本期跳过，直接完成
         taskbar.onTask = async (id) => {
             if (id === 'list') {
-                await popup.custom({
-                    title: '购物清单',
-                    height: 780,
-                    build: (content) => buildShoppingList(content),
-                    buttons: [{ label: '收好了', value: 'ok', primary: true }],
-                });
+                await shoppingList.play();
             } else if (id === 'sleep') {
                 await sleepRoom.play();
             } else {
