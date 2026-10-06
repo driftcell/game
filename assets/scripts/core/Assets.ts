@@ -1,5 +1,5 @@
 import { Node, resources, Size, Sprite, SpriteFrame, UITransform } from 'cc';
-import { ui } from './UITheme';
+import { block, Col, label, ui } from './UITheme';
 
 /** 资源清单（key -> resources 路径）。换高清图时直接覆盖同名文件即可 */
 const MANIFEST: Record<string, string> = {
@@ -41,6 +41,11 @@ const MANIFEST: Record<string, string> = {
     cream: 'img/prop/cream',
     clothes: 'img/prop/clothes',
     powder: 'img/prop/powder',
+    // 布置尿布台（同上，占位待美术）
+    pad: 'img/prop/pad',
+    cotton: 'img/prop/cotton',
+    towel: 'img/prop/towel',
+    cup: 'img/prop/cup',
 };
 
 class ImgRegistry {
@@ -84,6 +89,14 @@ class ImgRegistry {
         // 默认 TRIMMED 会在赋值 spriteFrame 时把尺寸改成原图像素，这里必须用 CUSTOM 保住传入的宽高
         sp.sizeMode = Sprite.SizeMode.CUSTOM;
         if (sf) sp.spriteFrame = sf;
+        return n;
+    }
+
+    /** 有图用图，无图用白底圆角块 + 首字占位（美术后补同名 png 即自动替换） */
+    icon(parent: Node, key: string, name: string, size: number, x = 0, y = 0): Node {
+        if (this.get(key)) return this.sprite(parent, key, size, x, y);
+        const n = block(parent, size, size, Col.white, size * 0.22, x, y, Col.line);
+        label(n, name.slice(0, 1), { size: Math.round(size * 0.42), bold: true, color: Col.pinkDeep });
         return n;
     }
 }

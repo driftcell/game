@@ -2,10 +2,11 @@ import { _decorator, Component, ResolutionPolicy, UITransform, view } from 'cc';
 import { Img } from './core/Assets';
 import { GameState } from './core/GameState';
 import { SaveManager } from './core/SaveManager';
-import { DH, DW, sleep } from './core/UITheme';
+import { DH, DW } from './core/UITheme';
 import { SEGMENTS } from './story/Script';
 import { Ctx, runSteps } from './story/Runner';
 import { ChoiceView } from './ui/ChoiceView';
+import { DiaperStationView } from './ui/DiaperStationView';
 import { DialogView } from './ui/DialogView';
 import { Hud } from './ui/Hud';
 import { Overlay } from './ui/Overlay';
@@ -46,9 +47,10 @@ export class GameApp extends Component {
         const dialog = new DialogView(root, this);
         const choices = new ChoiceView(root);
         const taskbar = new TaskBar(root);
-        // 睡眠区/购物清单小游戏在任务卡之上、HUD 之下（保留孕周徽章）
+        // 睡眠区/购物清单/尿布台小游戏在任务卡之上、HUD 之下（保留孕周徽章）
         const sleepRoom = new SleepRoomView(root);
         const shoppingList = new ShoppingListView(root);
+        const diaperStation = new DiaperStationView(root);
         const hud = new Hud(root);
         const phone = new PhoneView(root);
         // 存档菜单在弹窗之下：删除/覆盖确认走 popup
@@ -61,16 +63,17 @@ export class GameApp extends Component {
         const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay };
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
         (window as unknown as Record<string, unknown>).__shoppingList = shoppingList;
+        (window as unknown as Record<string, unknown>).__diaperStation = diaperStation;
         (window as unknown as Record<string, unknown>).__save = SaveManager;
 
-        // 任务卡点击：购物清单为分类拖拽小游戏；布置安全睡眠区进入拖拽小游戏；尿布台本期跳过，直接完成
+        // 任务卡点击：三个任务均为拖拽小游戏
         taskbar.onTask = async (id) => {
             if (id === 'list') {
                 await shoppingList.play();
             } else if (id === 'sleep') {
                 await sleepRoom.play();
             } else {
-                await sleep(300);
+                await diaperStation.play();
             }
             taskbar.markDone(id);
         };

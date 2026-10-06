@@ -53,14 +53,6 @@ const PILL_W = COL_W - 28;
 const PILL_H = 60;
 const PILL_GAP = 12;
 
-/** 有图用图，无图用白底首字占位（美术后补同名 png 即可自动替换） */
-function makeIcon(parent: Node, key: string, name: string, size: number, x = 0, y = 0): Node {
-    if (Img.get(key)) return Img.sprite(parent, key, size, x, y);
-    const n = block(parent, size, size, Col.white, size * 0.22, x, y, Col.line);
-    label(n, name.slice(0, 1), { size: Math.round(size * 0.42), bold: true, color: Col.pinkDeep });
-    return n;
-}
-
 /**
  * 第一章小游戏：整理购物清单。
  * 把物品栏里的东西拖进三列（现在就要 / 可以晚一点 / 不需要）：
@@ -198,7 +190,7 @@ export class ShoppingListView {
         let x = -totalW / 2 + CARD_W / 2;
         for (const def of items) {
             const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
-            makeIcon(card, def.key, def.name, 92, 0, 6);
+            Img.icon(card, def.key, def.name, 92, 0, 6);
             label(this.cardLayer, def.name, { size: 24, color: new Color(242, 234, 238) }, x, LABEL_Y);
             if (this.placed.has(def.key)) opacity(card).opacity = 100;
             this.cards.push({ def, x, node: card });
@@ -287,7 +279,7 @@ export class ShoppingListView {
             if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;
             this.axis = this.dragDef && Math.abs(dy) >= Math.abs(dx) ? 'drag' : 'swipe';
             if (this.axis === 'drag' && this.dragDef) {
-                this.ghost = makeIcon(this.dragLayer, this.dragDef.key, this.dragDef.name, 100, p.x, p.y + 60);
+                this.ghost = Img.icon(this.dragLayer, this.dragDef.key, this.dragDef.name, 100, p.x, p.y + 60);
                 opacity(this.ghost).opacity = 235;
             }
         }
@@ -357,7 +349,7 @@ export class ShoppingListView {
 
     private spawnPill(def: ShopItem, x: number, y: number): void {
         const pill = block(this.pillLayer, PILL_W, PILL_H, Col.white, 14, x, y, Col.line);
-        makeIcon(pill, def.key, def.name, 44, -PILL_W / 2 + 36, 0);
+        Img.icon(pill, def.key, def.name, 44, -PILL_W / 2 + 36, 0);
         label(pill, def.name, { size: 24, color: Col.ink }, 14, 0);
         pill.setScale(0.7, 0.7, 1);
         tween(pill).to(0.12, { scale: new Vec3(1.06, 1.06, 1) }).to(0.1, { scale: new Vec3(1, 1, 1) }).start();
