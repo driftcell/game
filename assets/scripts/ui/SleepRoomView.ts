@@ -10,23 +10,25 @@ interface ItemDef {
     slot?: Vec2;          // 吸附点（根节点坐标，估算值，按预览微调）
     scale?: number;       // 房间内的显示大小
     z?: number;           // 叠放顺序
+    vanish?: boolean;     // 放到床里：飞入后淡出销毁，不做重叠显示
 }
 
 /** 顺序与设计稿物品栏三页一致：5 / 5 / 2 */
 const ITEMS: ItemDef[] = [
     { key: 'crib', name: '婴儿床', safe: true, slot: new Vec2(200, -68), scale: 1.75, z: 30 },
-    { key: 'mattress', name: '坚实床垫', safe: true, slot: new Vec2(200, -68), scale: 1.5, z: 0 },
+    { key: 'mattress', name: '坚实床垫', safe: true, slot: new Vec2(200, -68), scale: 1.5, z: 0, vanish: true },
     { key: 'pillow', name: '枕头', safe: false, hint: '1 岁前不需要枕头，会增加窒息风险' },
     { key: 'quilt', name: '被子', safe: false, hint: '被子容易捂住口鼻，换成睡袋更安全' },
     { key: 'crib_bumper', name: '床围', safe: false, hint: '床围有缠绕和窒息风险，不要围在婴儿床边' },
     { key: 'plush', name: '毛绒玩具', safe: false, hint: '宝宝睡觉时，婴儿床里不放毛绒玩具' },
-    // 睡袋/袜子画在床层之上（crib.png 内部不透明，藏床后看不见），缩小躺进床里
-    { key: 'sleep_bag', name: '睡袋', safe: true, slot: new Vec2(198, -72), scale: 0.75, z: 35 },
+    // 放到床里的东西（床垫/睡袋/袜子）vanish：飞入床中后隐藏
+    { key: 'sleep_bag', name: '睡袋', safe: true, slot: new Vec2(198, -72), scale: 0.75, z: 35, vanish: true },
     { key: 'hat', name: '帽子', safe: false, hint: '睡觉时不给宝宝戴帽子' },
-    { key: 'socks', name: '智能监控袜', safe: true, slot: new Vec2(232, -88), scale: 0.45, z: 36 },
+    { key: 'socks', name: '智能监控袜', safe: true, slot: new Vec2(232, -88), scale: 0.45, z: 36, vanish: true },
     { key: 'mobile', name: '床铃', safe: false, hint: '床铃要挂在宝宝够不到的位置，睡觉前先移开' },
-    { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(295, -245), scale: 1.3, z: 40 },
-    { key: 'night_light', name: '小夜灯', safe: true, slot: new Vec2(60, -165), scale: 1.0, z: 40 },
+    // 收纳筐放在婴儿床前的地毯上；小夜灯放在大床与婴儿床之间的空地
+    { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(215, -205), scale: 1.15, z: 40 },
+    { key: 'night_light', name: '小夜灯', safe: true, slot: new Vec2(70, -85), scale: 0.6, z: 40 },
 ];
 
 const SAFE_COUNT = ITEMS.filter((d) => d.safe).length;
@@ -293,15 +295,20 @@ export class SleepRoomView {
         if (def.safe && p.y > PANEL_TOP + 20) {
             const slot = def.slot!;
             this.placed.add(def.key);
-            this.placedNodes.set(def.key, ghost);
-            tween(ghost)
-                .to(0.18, { position: new Vec3(slot.x, slot.y, 0) })
-                .call(() => {
-                    ghost.setParent(this.placedLayer);
-                    ghost.setPosition(slot.x, slot.y, 0);
-                    this.restack();
-                })
-                .start();
+            if (def.vanish) {
+                tween(ghost).to(0.18, { position: new Vec3(slot.x, slot.y, 0) }).start();
+                tween(opacity(ghost)).delay(0.18).to(0.12, { opacity: 0 }).call(() => ghost.destroy()).start();
+            } else {
+                this.placedNodes.set(def.key, ghost);
+                tween(ghost)
+                    .to(0.18, { position: new Vec3(slot.x, slot.y, 0) })
+                    .call(() => {
+                        ghost.setParent(this.placedLayer);
+                        ghost.setPosition(slot.x, slot.y, 0);
+                        this.restack();
+                    })
+                    .start();
+            }
             this.renderPage();
             this.maybeCards();
         } else {
@@ -314,13 +321,14 @@ export class SleepRoomView {
     debugPlace(key: string): void {
         const def = ITEMS.find((d) => d.key === key);
         if (!def || !def.safe || this.placed.has(key)) return;
-        const s = def.scale ?? 1;
-        const slot = def.slot!;
-        const node = Img.sprite(this.placedLayer, key, 100 * s, slot.x, slot.y);
-        opacity(node).opacity = 255;
         this.placed.add(key);
-        this.placedNodes.set(key, node);
-        this.restack();
+        if (!def.vanish) {
+            const s = def.scale ?? 1;
+            const slot = def.slot!;
+            const node = Img.sprite(this.placedLayer, key, 100 * s, slot.x, slot.y);
+            this.placedNodes.set(key, node);
+            this.restack();
+        }
         this.renderPage();
         this.maybeCards();
     }
