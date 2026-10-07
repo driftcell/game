@@ -1,6 +1,7 @@
 import { Color, Graphics, HorizontalTextAlignment, Node } from 'cc';
 import { GameState, SupporterType } from '../core/GameState';
 import { Col, label, labelInBox } from '../core/UITheme';
+import type { CardRow } from '../ui/KnowledgeCardView';
 import { Ctx, Step } from './Runner';
 
 /** 剧本段落：存档断点的最小单位。每段开头必须自带 scene/badge 步骤，保证读档重跑能重建画面 */
@@ -58,6 +59,17 @@ function openingSteps(): Step[] {
         { k: 'achieve', name: '我们的故事开始了' },
     ];
 }
+
+/* ---------------------------------- 知识卡 ---------------------------------- */
+
+/** 布置睡眠区完成后的「安全睡眠五句话」知识卡 */
+export const SLEEP_SAFETY_CARD: CardRow[] = [
+    { icon: 'kc_separate', text: '与父母同室不同床。' },
+    { icon: 'kc_back', text: '仰卧入睡。' },
+    { icon: 'kc_flat', text: '平坦睡眠表面。' },
+    { icon: 'kc_nopillow', text: '不放枕头、被子、床围、毛绒玩具等松软物品。' },
+    { icon: 'kc_nohat', text: '不带帽子避免过热和遮盖头部。' },
+];
 
 /* ---------------------------------- 第一章 ---------------------------------- */
 

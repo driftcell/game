@@ -3,12 +3,13 @@ import { Img } from './core/Assets';
 import { GameState } from './core/GameState';
 import { SaveManager } from './core/SaveManager';
 import { DH, DW } from './core/UITheme';
-import { SEGMENTS } from './story/Script';
+import { SEGMENTS, SLEEP_SAFETY_CARD } from './story/Script';
 import { Ctx, runSteps } from './story/Runner';
 import { ChoiceView } from './ui/ChoiceView';
 import { DiaperStationView } from './ui/DiaperStationView';
 import { DialogView } from './ui/DialogView';
 import { Hud } from './ui/Hud';
+import { KnowledgeCardView } from './ui/KnowledgeCardView';
 import { Overlay } from './ui/Overlay';
 import { PhoneView } from './ui/PhoneView';
 import { PopupView } from './ui/PopupView';
@@ -51,8 +52,15 @@ export class GameApp extends Component {
         const sleepRoom = new SleepRoomView(root);
         const shoppingList = new ShoppingListView(root);
         const diaperStation = new DiaperStationView(root);
+        // 知识卡压在小游戏之上、手机之下（收进手机时飞向手机图标）
+        const knowledgeCard = new KnowledgeCardView(root);
         const hud = new Hud(root);
         const phone = new PhoneView(root);
+        knowledgeCard.phonePos = phone.iconPos();
+        knowledgeCard.onCollected = () => {
+            phone.bounce();
+            phone.setBadge(GameState.badge);
+        };
         // 存档菜单在弹窗之下：删除/覆盖确认走 popup
         const saveMenu = new SaveMenuView(root);
         const popup = new PopupView(root);
@@ -66,12 +74,14 @@ export class GameApp extends Component {
         (window as unknown as Record<string, unknown>).__diaperStation = diaperStation;
         (window as unknown as Record<string, unknown>).__save = SaveManager;
 
-        // 任务卡点击：三个任务均为拖拽小游戏
+        // 任务卡点击：三个任务均为拖拽小游戏；睡眠区完成后接知识卡（收进手机）
         taskbar.onTask = async (id) => {
             if (id === 'list') {
                 await shoppingList.play();
             } else if (id === 'sleep') {
                 await sleepRoom.play();
+                await knowledgeCard.play('知识卡｜安全睡眠五句话', SLEEP_SAFETY_CARD);
+                await sleepRoom.close();
             } else {
                 await diaperStation.play();
             }

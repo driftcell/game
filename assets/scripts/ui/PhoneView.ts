@@ -1,25 +1,57 @@
-import { Color, Node, tween, UIOpacity, Vec3 } from 'cc';
+import { Color, Node, Tween, tween, UIOpacity, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, button, Col, DH, DW, label, labelInBox, layer, ui } from '../core/UITheme';
+import { GameState } from '../core/GameState';
 
-/** 右侧边缘手机图标 + 章节任务卡滑出面板 */
+/** 右侧边缘手机图标（动态成长记录角标）+ 章节任务卡滑出面板 */
 export class PhoneView {
     root: Node;
     private iconN: Node;
+    private badgeN: Node;
+    private badgeL: ReturnType<typeof label>;
     private panel: Node | null = null;
 
     constructor(parent: Node) {
         this.root = layer(parent, 'phone');
-        this.iconN = Img.sprite(this.root, 'phone', 64);
+        this.iconN = Img.sprite(this.root, 'phone_clean', 64);
         const W = DW; const H = DH;
         // 右侧中上部空档区：避开对白/选项/任务卡（y<-227）与时间徽章/绶带（y>552）
         this.iconN.setPosition(W / 2 - 44, H / 2 - 400);
+        // 动态角标（盖住原图擦掉角标的位置）
+        this.badgeN = block(this.iconN, 30, 30, new Color(244, 74, 122), 15, 25, 37);
+        this.badgeL = label(this.badgeN, '1', { size: 22, bold: true, color: Col.white }, 0, 0);
+        this.setBadge(GameState.badge);
         // 呼吸提示
+        this.breathe();
+    }
+
+    /** 成长记录角标：0 隐藏，>99 显示 99+ */
+    setBadge(n: number): void {
+        this.badgeN.active = n > 0;
+        this.badgeL.string = n > 99 ? '99+' : String(n);
+    }
+
+    private breathe(): void {
         tween(this.iconN).to(1.2, { scale: new Vec3(1.05, 1.05, 1) }).to(1.2, { scale: new Vec3(1, 1, 1) }).union().repeatForever().start();
     }
 
     setVisible(v: boolean): void {
         this.iconN.active = v;
+    }
+
+    /** 手机图标位置（知识卡「收进手机」的飞入目标） */
+    iconPos(): Vec3 {
+        return this.iconN.position.clone();
+    }
+
+    /** 收进手机时的弹跳反馈（先停呼吸动画，结束后恢复） */
+    bounce(): void {
+        Tween.stopAllByTarget(this.iconN);
+        tween(this.iconN)
+            .to(0.15, { scale: new Vec3(1.25, 1.25, 1) })
+            .to(0.15, { scale: new Vec3(1, 1, 1) })
+            .call(() => this.breathe())
+            .start();
     }
 
     /** 章节任务卡：从右侧滑入（占屏右 2/3） */

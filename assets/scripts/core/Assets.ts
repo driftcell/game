@@ -21,6 +21,19 @@ const MANIFEST: Record<string, string> = {
     task_list: 'img/task/task_list',
     radio_off: 'img/ui/radio_off',
     radio_on: 'img/ui/radio_on',
+    // 知识卡图标 + 收进手机按钮
+    kc_separate: 'img/ui/kc_separate',
+    kc_back: 'img/ui/kc_back',
+    kc_flat: 'img/ui/kc_flat',
+    kc_nopillow: 'img/ui/kc_nopillow',
+    kc_nohat: 'img/ui/kc_nohat',
+    btn_collect: 'img/ui/btn_collect',
+    // 睡眠检查卡 + 观察卡 + 无角标手机（动态角标）
+    check_green: 'img/ui/check_green',
+    pin: 'img/ui/pin',
+    xz_peek: 'img/ui/xz_peek',
+    btn_great: 'img/ui/btn_great',
+    phone_clean: 'img/ui/phone_clean',
     // 布置安全睡眠区
     bedroom: 'img/scene/bedroom',
     crib: 'img/prop/crib',

@@ -85,6 +85,7 @@ async function runStep(ctx: Ctx, s: Step): Promise<void> {
                 GameState.achievements.push(s.name);
                 GameState.badge++;
                 GameState.save();
+                ctx.phone.setBadge(GameState.badge);
                 await ctx.hud.banner.show(s.name);
             }
             break;
