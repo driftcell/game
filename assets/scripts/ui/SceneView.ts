@@ -2,7 +2,7 @@ import { Color, Graphics, Node } from 'cc';
 import { Img } from '../core/Assets';
 import { block, Col, DH, DW, layer, ui } from '../core/UITheme';
 
-export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night';
+export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night' | 'bedroom-setup';
 
 /** 场景背景层：真实切图 + 夜晚压暗 */
 export class SceneView {
@@ -35,6 +35,14 @@ export class SceneView {
             const s = Img.size('bedroom_night');
             const scale = DH / s.height;
             Img.sprite(this.host, 'bedroom_night', s.width * scale, 0, 0);
+            return;
+        }
+        if (kind === 'bedroom-setup') {
+            // 第二章白天卧室（地上有行李箱和纸箱）
+            block(this.host, 4000, 4000, new Color(250, 229, 226));
+            const s = Img.size('bedroom_setup');
+            const scale = DH / s.height;
+            Img.sprite(this.host, 'bedroom_setup', s.width * scale, 0, 0);
             return;
         }
         // 客厅场景图：按高度铺满，水平居中（图片自带粉色边框，与页面底色融合）

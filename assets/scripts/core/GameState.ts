@@ -9,6 +9,9 @@ class GameStateData {
     /** 成就与手机角标为全局数据，跨存档共享 */
     achievements: string[] = [];
     badge = 0;
+    /** 第二章：生产偏好勾选（[分区][选项索引]）与「最想让医护记住的一条」 */
+    prefs: number[][] = [];
+    starPick = '';
 
     /** 持久化钩子，由 GameApp 接到 SaveManager.writeCurrent */
     persist: () => void = () => {};
@@ -23,6 +26,8 @@ class GameStateData {
         this.supporterType = '爸爸';
         this.supporterName = '爸爸';
         this.babyName = '宝宝';
+        this.prefs = [];
+        this.starPick = '';
     }
 
     /** 支持者显示名；独自一人时由其功能性台词由小智承担 */

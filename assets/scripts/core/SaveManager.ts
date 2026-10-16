@@ -11,6 +11,8 @@ export interface SlotData {
     st: SupporterType;    // supporterType
     sn: string;           // supporterName
     b: string;            // babyName
+    pf?: number[][];      // 生产偏好勾选（第二章）
+    sp?: string;          // 最想让医护记住的一条
 }
 
 interface GlobalData { achievements: string[]; badge: number; }
@@ -95,6 +97,8 @@ class SaveManagerData {
         GameState.supporterType = d.st;
         GameState.supporterName = d.sn;
         GameState.babyName = d.b;
+        GameState.prefs = d.pf ?? [];
+        GameState.starPick = d.sp ?? '';
         this.slot = slot;
         this.currentCheckpoint = d.checkpoint;
         this.currentLabel = d.label;
@@ -107,6 +111,7 @@ class SaveManagerData {
         this.writeRaw(this.slot, {
             v: 1, checkpoint: this.currentCheckpoint, label: this.currentLabel, savedAt: Date.now(),
             m: GameState.momName, st: GameState.supporterType, sn: GameState.supporterName, b: GameState.babyName,
+            pf: GameState.prefs, sp: GameState.starPick,
         });
         this.saveGlobal({ achievements: GameState.achievements, badge: GameState.badge });
     }

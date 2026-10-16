@@ -202,17 +202,132 @@ function ch1EndSteps(): Step[] {
             },
         },
 
-        // 安静的收尾：让卧室夜景停一瞬
+        // 安静的收尾：让卧室夜景停一瞬，然后翻开第二章
         { k: 'ui', run: async () => { await new Promise((r) => setTimeout(r, 1200)); } },
 
         { k: 'ui', run: async (ctx) => { await ctx.phone.chapterCard('第二章｜为生产做准备', '孕39周+1天'); } },
+    ];
+}
+
+/* ---------------------------------- 第二章 ---------------------------------- */
+
+function ch2BagSteps(): Step[] {
+    return [
+        { k: 'ui', run: async (ctx) => {
+            ctx.dialog.hide();
+            ctx.portraits.hide();
+            await ctx.overlay.chapterCover('第二章｜为生产做准备', '孕39周+1天', 'suitcase');
+        } },
+        { k: 'scene', s: 'bedroom-setup' },
+        { k: 'badge', text: '孕39周+1天' },
+
+        { k: 'dialog', who: 'mom', text: '这几天可能随时会发动了，我们来收拾待产包吧。' },
+
+        // 收拾待产包：拖拽装箱小游戏（左半必要 / 右半可选）
+        { k: 'ui', run: async (ctx) => {
+            ctx.dialog.hide();
+            ctx.portraits.hide();
+            await ctx.bagPack.play();
+        } },
+
+        { k: 'dialog', who: 'mom', text: '我总觉得还漏了什么。' },
         {
-            k: 'ui', run: async (ctx) => {
-                ctx.dialog.hide();
-                ctx.portraits.hide();
-                await ctx.overlay.showEnd('第二章｜为生产做准备', '内容制作中，敬请期待', '—— 第一章完 ——');
-            },
+            k: 'choices',
+            sheet: '妈妈心里想',
+            options: [
+                {
+                    t: '再检查一遍，直到完全不担心为止。',
+                    then: [
+                        { k: 'dialog', who: 'xiaozhi', text: '反复检查可能短暂降低焦虑，但不会让不确定性消失。我们可以再做一次最终检查。' },
+                        { k: 'thought', text: '检查完成。担心的感觉没有变化。' },
+                        { k: 'dialog', who: 'xiaozhi', text: '检查是有用的，只是它没办法把「不确定」检查掉。' },
+                        { k: 'dialog', who: 'mom', text: '……那我把包放到门口。' },
+                    ],
+                },
+                {
+                    t: '我们已经有重要物品和医院联系方式，普通遗漏可以解决。',
+                    then: [
+                        { k: 'dialog', who: 'supporter', text: '我放到玄关了。从今天起它就一直在那儿。' },
+                    ],
+                },
+                {
+                    t: '我现在太焦虑了，先停五分钟，再做最后一次检查。',
+                    then: [
+                        { k: 'dialog', who: 'xiaozhi', text: '先让身体平静下来，再完成最后检查会更有效。' },
+                        { k: 'ui', run: async (ctx) => { await ctx.overlay.breathe(); } },
+                        { k: 'dialog', who: 'mom', text: '……好一点了。' },
+                        { k: 'dialog', who: 'mom', text: '最后再看一遍，看完就放到门口。' },
+                    ],
+                },
+            ],
         },
+
+        { k: 'achieve', name: '随时可以出发' },
+    ];
+}
+
+function ch2PrefsSteps(): Step[] {
+    return [
+        { k: 'scene', s: 'bedroom-setup' },
+        { k: 'badge', text: '孕39周+1天' },
+
+        { k: 'thought', text: '{mom}点开了待产包里的「生产偏好文档」。' },
+
+        // 我的生产偏好表单（设计稿 待产包-4）
+        { k: 'ui', run: async (ctx) => {
+            ctx.dialog.hide();
+            ctx.portraits.hide();
+            await ctx.prefs.playForm();
+        } },
+
+        { k: 'dialog', who: 'xiaozhi', text: '生产偏好是沟通工具，不是必须逐项完成的考试。' },
+        { k: 'dialog', who: 'xiaozhi', text: '它更像是一张「我在意什么」的清单，不是一张「必须做到什么」的清单。' },
+        {
+            k: 'choices',
+            options: [
+                {
+                    t: '如果最后没有按这份计划进行，我会觉得自己失败了。',
+                    then: [
+                        { k: 'dialog', who: 'xiaozhi', text: '生产方式或镇痛选择不会定义你的能力。计划改变时，你仍可以提问和参与决定。' },
+                    ],
+                },
+                {
+                    t: '我可以表达期待，也可以在情况变化时重新决定。',
+                    then: [
+                        { k: 'dialog', who: 'supporter', text: '这份文档最重要的作用，就是让医护人员知道你在意什么。我们准备好了。' },
+                    ],
+                },
+                {
+                    t: '写这么多，会不会显得我很难沟通？',
+                    then: [
+                        { k: 'dialog', who: 'xiaozhi', text: '医护每天都在做这件事。提前知道你在意什么，反而能省下沟通的时间。' },
+                    ],
+                },
+            ],
+        },
+
+        { k: 'dialog', who: 'xiaozhi', text: '如果只能让他们记住一条，你想让他们记住哪一条？' },
+        { k: 'ui', run: async (ctx) => {
+            ctx.dialog.hide();
+            ctx.portraits.hide();
+            await ctx.prefs.playStar();
+        } },
+        { k: 'dialog', who: 'mom', text: '……我想让他们知道，做什么之前先跟我说一声。' },
+        { k: 'dialog', who: 'xiaozhi', text: '这一条我记下了。' },
+
+        { k: 'achieve', name: '我的声音很重要' },
+    ];
+}
+
+function ch2EndSteps(): Step[] {
+    return [
+        { k: 'scene', s: 'bedroom-setup' },
+        { k: 'badge', text: '孕39周+1天' },
+        { k: 'ui', run: async (ctx) => {
+            ctx.dialog.hide();
+            ctx.portraits.hide();
+            await ctx.overlay.showEnd('第二章｜为生产做准备', '下一段：第一次肚子发紧', '内容制作中，敬请期待');
+        } },
     ];
 }
 
@@ -224,4 +339,7 @@ export const SEGMENTS: Segment[] = [
     { id: 'ch1-tasks', label: '第一章｜布置小窝', steps: ch1TaskSteps },
     { id: 'ch1-night', label: '第一章｜夜晚', steps: ch1NightSteps },
     { id: 'ch1-end', label: '第一章｜尾声', steps: ch1EndSteps },
+    { id: 'ch2-bag', label: '第二章｜收拾待产包', steps: ch2BagSteps },
+    { id: 'ch2-prefs', label: '第二章｜生产偏好', steps: ch2PrefsSteps },
+    { id: 'ch2-end', label: '第二章｜尾声', steps: ch2EndSteps },
 ];

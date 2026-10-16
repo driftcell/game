@@ -60,21 +60,67 @@ export class Overlay {
         op.opacity = 255;
     }
 
-    /** 章节封面：婴儿床线稿 -> 暖色填充 -> 淡出 */
-    async chapterCover(title: string, subtitle: string): Promise<void> {
+    /** 章节封面：婴儿床线稿 -> 暖色填充 -> 淡出；第二章为行李箱+宝宝鞋（线稿 -> 上色） */
+    async chapterCover(title: string, subtitle: string, kind: 'crib' | 'suitcase' = 'crib'): Promise<void> {
         const H = sizeOf(this.root).height || DH;
         this.stage.active = true;
         this.stage.removeAllChildren();
         const op = this.stage.getComponent(UIOpacity) || this.stage.addComponent(UIOpacity);
         op.opacity = 255;
-        block(this.stage, 20000, 20000, Col.wall);
-        label(this.stage, title, { size: 56, bold: true, color: Col.ink, family: 'Kaiti SC' }, 0, H / 2 - 320);
-        Img.sprite(this.stage, 'crib_line', 460, 0, -20);
-        label(this.stage, subtitle, { size: 28, color: Col.gray }, 0, -H / 2 + 300);
+        const artLine = kind === 'suitcase' ? 'bag_cover_line' : 'crib_line';
+        const artFill = kind === 'suitcase' ? 'bag_cover_fill' : 'crib_fill';
+        const artW = kind === 'suitcase' ? 342 : 460;
+        const artY = kind === 'suitcase' ? 58 : -20;
+        const titleY = kind === 'suitcase' ? 387 : H / 2 - 320;
+        const subY = kind === 'suitcase' ? -347 : -H / 2 + 300;
+        block(this.stage, 20000, 20000, kind === 'suitcase' ? new Color(248, 239, 232) : Col.wall);
+        label(this.stage, title, { size: 56, bold: true, color: Col.ink, family: 'Kaiti SC' }, 0, titleY);
+        Img.sprite(this.stage, artLine, artW, 0, artY);
+        label(this.stage, subtitle, { size: 28, color: Col.gray }, 0, subY);
         await sleep(1300);
-        Img.sprite(this.stage, 'crib_fill', 460, 0, -20);
+        Img.sprite(this.stage, artFill, artW, 0, artY);
         await sleep(1100);
         await new Promise<void>((r) => tween(op).to(0.6, { opacity: 0 }).call(() => r()).start());
+        this.stage.active = false;
+        op.opacity = 255;
+    }
+
+    /** 呼吸小练习（选项 C）：暗场 + 粉色圆环随呼吸放大缩小，点按可跳过 */
+    async breathe(rounds = 2): Promise<void> {
+        this.stage.active = true;
+        this.stage.removeAllChildren();
+        const op = this.stage.getComponent(UIOpacity) || this.stage.addComponent(UIOpacity);
+        op.opacity = 0;
+        const dim = block(this.stage, 20000, 20000, new Color(24, 18, 30, 160));
+        let skip = false;
+        dim.on(Node.EventType.TOUCH_END, () => { skip = true; });
+
+        const ring = new Node('ring');
+        this.stage.addChild(ring);
+        ui(ring, 400, 400, 0, 40);
+        const g = ring.addComponent(Graphics);
+        g.fillColor = new Color(238, 96, 148, 40);
+        g.circle(0, 0, 180);
+        g.fill();
+        g.lineWidth = 10;
+        g.strokeColor = Col.pink;
+        g.circle(0, 0, 180);
+        g.stroke();
+        const txt = label(ring, '吸气……', { size: 40, bold: true, color: Col.white }, 0, 0);
+
+        await new Promise<void>((r) => tween(op).to(0.3, { opacity: 255 }).call(() => r()).start());
+        for (let i = 0; i < rounds && !skip; i++) {
+            txt.string = '吸气……';
+            await new Promise<void>((r) => tween(ring).to(2.0, { scale: new Vec3(1.12, 1.12, 1) }, { easing: 'sineInOut' }).call(() => r()).start());
+            if (skip) break;
+            txt.string = '呼气……';
+            await new Promise<void>((r) => tween(ring).to(2.4, { scale: new Vec3(0.7, 0.7, 1) }, { easing: 'sineInOut' }).call(() => r()).start());
+        }
+        if (!skip) {
+            txt.string = '';
+            await sleep(400);
+        }
+        await new Promise<void>((r) => tween(op).to(0.3, { opacity: 0 }).call(() => r()).start());
         this.stage.active = false;
         op.opacity = 255;
     }

@@ -60,6 +60,31 @@ const MANIFEST: Record<string, string> = {
     powder: 'img/prop/powder',
     cup: 'img/prop/cup',
     cream: 'img/prop/cream',
+    // 第二章 · 收拾待产包
+    bedroom_setup: 'img/scene/bedroom_setup',
+    bedroom_bag: 'img/scene/bedroom_bag',
+    bag_case: 'img/prop/bag_case',
+    bag_title: 'img/prop/bag_title',
+    bag_btn: 'img/prop/bag_btn',
+    xz_peek_bag: 'img/prop/xz_peek_bag',
+    bag_cover_line: 'img/prop/bag_cover_line',
+    bag_cover_fill: 'img/prop/bag_cover_fill',
+    ico_save: 'img/ui/ico_save',
+    // 待产包物品图标：前 5 个为设计稿正式切图，后 9 个 AI 生图补齐（见 skill art-gen）
+    bag_id: 'img/prop/bag_id',
+    bag_doc: 'img/prop/bag_doc',
+    bag_charger: 'img/prop/bag_charger',
+    bag_mom: 'img/prop/bag_mom',
+    bag_wash: 'img/prop/bag_wash',
+    bag_seat: 'img/prop/bag_seat',
+    bag_baby: 'img/prop/bag_baby',
+    bag_sup: 'img/prop/bag_sup',
+    bag_ball: 'img/prop/bag_ball',
+    bag_snack: 'img/prop/bag_snack',
+    bag_yoga: 'img/prop/bag_yoga',
+    bag_aroma: 'img/prop/bag_aroma',
+    bag_ear: 'img/prop/bag_ear',
+    bag_dress: 'img/prop/bag_dress',
 };
 
 class ImgRegistry {

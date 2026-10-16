@@ -1,22 +1,24 @@
 import { Col } from '../core/UITheme';
 import { GameState } from '../core/GameState';
+import type { BagPackView } from '../ui/BagPackView';
 import type { ChoiceView } from '../ui/ChoiceView';
 import type { DialogView } from '../ui/DialogView';
 import type { Hud } from '../ui/Hud';
 import type { PhoneView } from '../ui/PhoneView';
 import type { PopupView } from '../ui/PopupView';
 import type { Portraits } from '../ui/Portraits';
+import type { PrefsView } from '../ui/PrefsView';
 import type { SceneView } from '../ui/SceneView';
 import type { TaskBar } from '../ui/TaskBar';
 import type { ThoughtView } from '../ui/ThoughtView';
 import type { Overlay } from '../ui/Overlay';
 
 export type Speaker = 'mom' | 'supporter' | 'xiaozhi';
-export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night';
+export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night' | 'bedroom-setup';
 
 export type Step =
     | { k: 'dialog'; who: Speaker; text: string }
-    | { k: 'choices'; hint?: string; options: { t: string; then?: Step[] }[] }
+    | { k: 'choices'; hint?: string; sheet?: string; options: { t: string; then?: Step[] }[] }
     | { k: 'thought'; text: string }
     | { k: 'scene'; s: SceneKind }
     | { k: 'badge'; text: string }
@@ -34,6 +36,8 @@ export interface Ctx {
     hud: Hud;
     phone: PhoneView;
     overlay: Overlay;
+    bagPack: BagPackView;
+    prefs: PrefsView;
 }
 
 function speakerInfo(who: Speaker): { label: string; portrait: Speaker } {
@@ -62,7 +66,9 @@ async function runStep(ctx: Ctx, s: Step): Promise<void> {
             ctx.portraits.hide();
             ctx.dialog.hide();
             const texts = s.options.map((o) => GameState.subst(o.t));
-            const idx = await ctx.choices.choose(s.hint ?? null, texts);
+            const idx = s.sheet
+                ? await ctx.choices.chooseSheet(GameState.subst(s.sheet), texts)
+                : await ctx.choices.choose(s.hint ?? null, texts);
             ctx.choices.hide();
             const opt = s.options[idx];
             if (opt.then && opt.then.length) await runSteps(ctx, opt.then);

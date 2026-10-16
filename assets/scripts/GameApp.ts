@@ -5,6 +5,7 @@ import { SaveManager } from './core/SaveManager';
 import { DH, DW } from './core/UITheme';
 import { SEGMENTS, SLEEP_SAFETY_CARD } from './story/Script';
 import { Ctx, runSteps } from './story/Runner';
+import { BagPackView } from './ui/BagPackView';
 import { ChoiceView } from './ui/ChoiceView';
 import { DiaperStationView } from './ui/DiaperStationView';
 import { DialogView } from './ui/DialogView';
@@ -14,6 +15,7 @@ import { Overlay } from './ui/Overlay';
 import { PhoneView } from './ui/PhoneView';
 import { PopupView } from './ui/PopupView';
 import { Portraits } from './ui/Portraits';
+import { PrefsView } from './ui/PrefsView';
 import { SaveMenuView } from './ui/SaveMenuView';
 import { SceneView } from './ui/SceneView';
 import { ShoppingListView } from './ui/ShoppingListView';
@@ -48,13 +50,16 @@ export class GameApp extends Component {
         const dialog = new DialogView(root, this);
         const choices = new ChoiceView(root);
         const taskbar = new TaskBar(root);
-        // 睡眠区/购物清单/尿布台小游戏在任务卡之上、HUD 之下（保留孕周徽章）
+        // 睡眠区/购物清单/尿布台/待产包小游戏在任务卡之上、HUD 之下（保留孕周徽章）
         const sleepRoom = new SleepRoomView(root);
         const shoppingList = new ShoppingListView(root);
         const diaperStation = new DiaperStationView(root);
+        const bagPack = new BagPackView(root);
         // 知识卡压在小游戏之上、手机之下（收进手机时飞向手机图标）
         const knowledgeCard = new KnowledgeCardView(root);
         const hud = new Hud(root);
+        // 生产偏好表单为全屏页：压在 HUD 之上（盖住孕周徽章，设计稿如此），在手机之下
+        const prefs = new PrefsView(root);
         const phone = new PhoneView(root);
         knowledgeCard.phonePos = phone.iconPos();
         knowledgeCard.onCollected = () => {
@@ -68,10 +73,12 @@ export class GameApp extends Component {
         const thought = new ThoughtView(root);
         const overlay = new Overlay(root);
 
-        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay };
+        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay, bagPack, prefs };
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
         (window as unknown as Record<string, unknown>).__shoppingList = shoppingList;
         (window as unknown as Record<string, unknown>).__diaperStation = diaperStation;
+        (window as unknown as Record<string, unknown>).__bagPack = bagPack;
+        (window as unknown as Record<string, unknown>).__prefs = prefs;
         (window as unknown as Record<string, unknown>).__save = SaveManager;
 
         // 任务卡点击：三个任务均为拖拽小游戏；睡眠区完成后接知识卡（收进手机）
