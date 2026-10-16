@@ -1,6 +1,5 @@
-import { Color, Graphics, HorizontalTextAlignment, Node } from 'cc';
+import { Color } from 'cc';
 import { GameState, SupporterType } from '../core/GameState';
-import { Col, label, labelInBox } from '../core/UITheme';
 import type { CardRow } from '../ui/KnowledgeCardView';
 import { Ctx, Step } from './Runner';
 
@@ -130,7 +129,7 @@ function ch1TaskSteps(): Step[] {
                 ctx.taskbar.show([
                     { id: 'sleep', icon: 'task_sleep', label: '布置睡眠区' },
                     { id: 'diaper', icon: 'task_diaper', label: '布置尿布台' },
-                    { id: 'list', icon: 'task_list', label: '整理购物清单' },
+                    { id: 'list', icon: 'task_list', label: '查看购物清单' },
                 ]);
                 await ctx.taskbar.waitAllDone();
                 ctx.taskbar.hide();
@@ -147,8 +146,8 @@ function ch1NightSteps(): Step[] {
                 ctx.dialog.hide();
                 ctx.portraits.hide();
                 await ctx.overlay.fadeIn(new Color(15, 16, 34), 0.5);
-                ctx.scene.set('living-night');
-                ctx.scene.nightGlow(-60, 60);
+                ctx.scene.set('bedroom-night');
+                ctx.scene.nightGlow(40, 95);
                 await ctx.overlay.fadeOut(0.5);
             },
         },
@@ -184,36 +183,27 @@ function ch1NightSteps(): Step[] {
 function ch1EndSteps(): Step[] {
     return [
         // 读档重跑时重建夜景
-        { k: 'scene', s: 'living-night' },
-        { k: 'ui', run: async (ctx) => { ctx.scene.nightGlow(-60, 60); } },
+        { k: 'scene', s: 'bedroom-night' },
+        { k: 'ui', run: async (ctx) => { ctx.scene.nightGlow(40, 95); } },
         { k: 'badge', text: '孕38周+2天' },
 
         {
             k: 'ui', run: async (ctx) => {
                 ctx.dialog.hide();
                 ctx.portraits.hide();
-                await ctx.overlay.card((cardN) => {
-                    label(cardN, '今天完成：3 件', { size: 34, bold: true, color: Col.ink }, 0, 130);
-                    const rows = ['布置睡眠区', '布置尿布台', '整理购物清单'];
-                    rows.forEach((t, i) => {
-                        const check = cardN.getChildByName('check' + i) || new Node('check' + i);
-                        cardN.addChild(check);
-                        check.setPosition(-140, 40 - i * 64);
-                        const cg = check.addComponent(Graphics);
-                        cg.lineWidth = 5;
-                        cg.strokeColor = Col.pink;
-                        cg.moveTo(-10, 0);
-                        cg.lineTo(-3, -8);
-                        cg.lineTo(10, 8);
-                        cg.stroke();
-                        labelInBox(cardN, t, 300, 44, { size: 28, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT }, 40, 40 - i * 64);
-                    });
-                }, 2400);
+                await ctx.overlay.doneSheet(
+                    [
+                        { icon: 'task_sleep', label: '布置睡眠区' },
+                        { icon: 'task_diaper', label: '布置尿布台' },
+                        { icon: 'task_list', label: '查看购物清单' },
+                    ],
+                    '小智：「把『准备好了吗』换成『今天完成了什么』，会容易回答很多。」',
+                );
             },
         },
 
-        // 安静的收尾：妈妈与支持者并肩站在婴儿床旁（3 秒）
-        { k: 'ui', run: async () => { await new Promise((r) => setTimeout(r, 3000)); } },
+        // 安静的收尾：让卧室夜景停一瞬
+        { k: 'ui', run: async () => { await new Promise((r) => setTimeout(r, 1200)); } },
 
         { k: 'ui', run: async (ctx) => { await ctx.phone.chapterCard('第二章｜为生产做准备', '孕39周+1天'); } },
         {

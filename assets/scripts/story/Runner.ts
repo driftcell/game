@@ -12,7 +12,7 @@ import type { ThoughtView } from '../ui/ThoughtView';
 import type { Overlay } from '../ui/Overlay';
 
 export type Speaker = 'mom' | 'supporter' | 'xiaozhi';
-export type SceneKind = 'pink' | 'living-day' | 'living-night';
+export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night';
 
 export type Step =
     | { k: 'dialog'; who: Speaker; text: string }

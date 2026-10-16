@@ -10,34 +10,34 @@ interface DiaperItem {
     hint: string;      // 放错区时的温柔科普
 }
 
-/** 顺序按物品栏分页（5/5/1），各区域交错避免连续同区 */
+/** 顺序按设计稿物品栏分页（5/5，两页）：第一页与设计稿一致（纸尿裤/湿巾/润肤乳/隔尿垫/干净衣物） */
 const ITEMS: DiaperItem[] = [
-    { key: 'diaper', name: '尿布', zone: 0, hint: '尿布每次都要用，放在伸手即取的台面上' },
-    { key: 'powder', name: '爽身粉', zone: 2, hint: '粉末容易被宝宝吸入，收起来不要用' },
-    { key: 'cotton', name: '棉柔巾', zone: 1, hint: '棉柔巾是备货，收进抽屉，用完再补' },
-    { key: 'cup', name: '热水杯', zone: 2, hint: '热水杯放在尿布台边有烫伤风险，拿远一点' },
+    { key: 'diaper', name: '纸尿裤', zone: 0, hint: '纸尿裤每次都要用，放在伸手即取的台面上' },
     { key: 'wipes', name: '湿巾', zone: 0, hint: '湿巾每次换尿布都要用，放在台面上' },
+    { key: 'lotion', name: '润肤乳', zone: 0, hint: '润肤乳每次都可能用，放台面伸手即取' },
     { key: 'pad', name: '隔尿垫', zone: 0, hint: '隔尿垫垫在宝宝身下，放台面随手拿' },
+    { key: 'clothes', name: '干净衣物', zone: 1, hint: '备用的干净衣物收进抽屉，用的时候再拿' },
+    { key: 'diaper2', img: 'diaper', name: '备用纸尿裤', zone: 1, hint: '囤货的纸尿裤收进抽屉，台面上只留几片' },
+    { key: 'powder', name: '爽身粉', zone: 2, hint: '粉末容易被宝宝吸入，收起来不要用' },
+    { key: 'cup', name: '热水杯', zone: 2, hint: '热水杯放在尿布台边有烫伤风险，拿远一点' },
     { key: 'plush', name: '毛绒玩具', zone: 2, hint: '毛绒玩具先收起来，换尿布时容易掉下来' },
-    { key: 'towel', name: '小毛巾', zone: 1, hint: '小毛巾放抽屉里备用' },
-    { key: 'cream', name: '护臀膏', zone: 0, hint: '护臀膏每次都可能用，放台面伸手即取' },
     { key: 'phone', name: '手机', zone: 2, hint: '换尿布时不看手机，宝宝一秒都不能离开视线' },
-    { key: 'diaper2', img: 'diaper', name: '备用尿布', zone: 1, hint: '囤货的尿布收进抽屉，台面上只留几片' },
 ];
 
 const ZONE_COLORS = [Col.pink, new Color(240, 170, 90), Col.gray];
-/** 放置位（根坐标）：台面 4 / 抽屉 3 / 收纳筐 2x2 */
+/** 放置位（根坐标，按设计稿房间切图定位）：
+ *  台面 = 尿布台台面 2x2；抽屉 = 台下两层搁板；收纳筐 = 台前地板上的筐 */
 const SLOTS: [number, number][][] = [
-    [[-210, 218], [-110, 218], [-10, 218], [90, 218]],
-    [[-160, 50], [-60, 50], [40, 50]],
-    [[225, -20], [295, -20], [225, -90], [295, -90]],
+    [[24, 244], [64, 242], [12, 280], [52, 278]],
+    [[38, 183], [44, 146], [82, 148]],
+    [[158, -58], [212, -58], [158, -110], [212, -110]],
 ];
-const SLOT_SIZE = [72, 60, 56];
+const SLOT_SIZE = [48, 38, 46];
 /** 高亮框（根坐标） */
 const FRAMES = [
-    { x: -60, y: 205, w: 470, h: 180 },
-    { x: -60, y: 50, w: 360, h: 140 },
-    { x: 260, y: -65, w: 250, h: 300 },
+    { x: 40, y: 262, w: 200, h: 140 },
+    { x: 58, y: 165, w: 160, h: 110 },
+    { x: 185, y: -84, w: 190, h: 180 },
 ];
 
 const PAGE_SIZE = 5;
@@ -90,16 +90,9 @@ export class DiaperStationView {
         catcher.on(Node.EventType.TOUCH_START, () => { /* 吞掉 */ });
         catcher.on(Node.EventType.TOUCH_END, () => { /* 吞掉 */ });
 
-        block(this.root, DW, DH, Col.pinkPale);
-        // 标题下移避开右上角孕周徽章
-        label(this.root, '布置尿布台', { size: 40, bold: true, color: Col.ink }, 0, 618);
-        label(this.root, '把物品放到顺手又安全的位置', { size: 24, color: Col.gray }, 0, 568);
-
-        this.drawTable();
-        Img.sprite(this.root, 'basket', 170, 260, -60);
-        label(this.root, '台面 · 伸手即取', { size: 20, color: Col.gray }, -60, 278);
-        label(this.root, '抽屉 · 备货', { size: 20, color: Col.gray }, -60, -70);
-        label(this.root, '收起来 · 不上桌', { size: 20, color: Col.gray }, 260, -175);
+        Img.sprite(this.root, 'bedroom_diaper', DW, 0, 0);
+        // 收纳筐放在尿布台前的地板上（设计稿房间无筐，游戏按玩法补一只）
+        Img.sprite(this.root, 'basket', 140, 185, -70);
 
         // 三处高亮框（拖拽悬停时描边）
         FRAMES.forEach(() => {
@@ -161,27 +154,6 @@ export class DiaperStationView {
         this.panel.on(Node.EventType.TOUCH_CANCEL, this.onCancel, this);
 
         this.root.active = false;
-    }
-
-    /** 尿布台：木质台面 + 两条腿 + 抽屉（带把手） */
-    private drawTable(): void {
-        const n = new Node('table');
-        this.root.addChild(n);
-        ui(n, DW, DH);
-        const g = n.addComponent(Graphics);
-        g.fillColor = Col.box;
-        g.roundRect(-240, -40, 28, 178, 6);
-        g.roundRect(92, -40, 28, 178, 6);
-        g.fill();
-        g.fillColor = new Color(243, 216, 182);
-        g.roundRect(-208, 5, 296, 90, 8);
-        g.fill();
-        g.fillColor = Col.box;
-        g.roundRect(-100, 44, 80, 12, 6);
-        g.fill();
-        g.fillColor = Col.wood;
-        g.roundRect(-260, 138, 400, 44, 10);
-        g.fill();
     }
 
     /** 进入小游戏：重置并淡入，返回的 Promise 在布置完成后 resolve */
@@ -273,9 +245,9 @@ export class DiaperStationView {
     }
 
     private hitZone(p: Vec3): number {
-        if (Math.abs(p.x + 60) <= 220 && p.y >= 130 && p.y <= 280) return 0;
-        if (Math.abs(p.x + 60) <= 170 && p.y >= -10 && p.y <= 110) return 1;
-        if (Math.abs(p.x - 260) <= 110 && p.y >= -200 && p.y <= 70) return 2;
+        if (Math.abs(p.x - 40) <= 115 && p.y >= 195 && p.y <= 345) return 0;
+        if (Math.abs(p.x - 58) <= 95 && p.y >= 105 && p.y <= 195) return 1;
+        if (Math.abs(p.x - 185) <= 110 && p.y >= -180 && p.y <= 10) return 2;
         return -1;
     }
 

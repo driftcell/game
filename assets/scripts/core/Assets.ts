@@ -36,6 +36,7 @@ const MANIFEST: Record<string, string> = {
     phone_clean: 'img/ui/phone_clean',
     // 布置安全睡眠区
     bedroom: 'img/scene/bedroom',
+    bedroom_night: 'img/scene/bedroom_night',
     crib: 'img/prop/crib',
     mattress: 'img/prop/mattress',
     pillow: 'img/prop/pillow',
@@ -48,16 +49,15 @@ const MANIFEST: Record<string, string> = {
     mobile: 'img/prop/mobile',
     basket: 'img/prop/basket',
     night_light: 'img/prop/night_light',
-    // 整理购物清单（暂无图的会 warn 并走占位首字）
+    // 布置尿布台（房间视图；纸尿裤/湿巾/润肤乳/隔尿垫/干净衣物为设计稿正式切图）
+    bedroom_diaper: 'img/scene/bedroom_diaper',
     diaper: 'img/prop/diaper',
     wipes: 'img/prop/wipes',
-    cream: 'img/prop/cream',
-    clothes: 'img/prop/clothes',
-    powder: 'img/prop/powder',
-    // 布置尿布台（同上，占位待美术）
+    lotion: 'img/prop/lotion',
     pad: 'img/prop/pad',
-    cotton: 'img/prop/cotton',
-    towel: 'img/prop/towel',
+    clothes: 'img/prop/clothes',
+    // 暂无图的占位（换高清图时直接覆盖同名文件即可）
+    powder: 'img/prop/powder',
     cup: 'img/prop/cup',
 };
 

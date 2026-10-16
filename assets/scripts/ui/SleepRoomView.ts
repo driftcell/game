@@ -13,22 +13,24 @@ interface ItemDef {
     vanish?: boolean;     // 放到床里：飞入后淡出销毁，不做重叠显示
 }
 
-/** 顺序与设计稿物品栏三页一致：5 / 5 / 2 */
+/** 顺序与设计稿物品栏三页一致：5 / 5 / 2
+ *  坐标按设计稿房间切片 1:1 换算（设计稿 4x 像素 ÷2 转游戏坐标）：
+ *  婴儿床放在大床左侧（贴左床脚，还原设计稿「床就放在我们床的旁边」） */
 const ITEMS: ItemDef[] = [
-    { key: 'crib', name: '婴儿床', safe: true, slot: new Vec2(200, -68), scale: 1.75, z: 30 },
-    { key: 'mattress', name: '坚实床垫', safe: true, slot: new Vec2(200, -68), scale: 1.5, z: 0, vanish: true },
+    { key: 'crib', name: '婴儿床', safe: true, slot: new Vec2(-236, -50), scale: 2.5, z: 30 },
+    { key: 'mattress', name: '坚实床垫', safe: true, slot: new Vec2(-236, -52), scale: 1.5, z: 0, vanish: true },
     { key: 'pillow', name: '枕头', safe: false, hint: '1 岁前不需要枕头，会增加窒息风险' },
     { key: 'quilt', name: '被子', safe: false, hint: '被子容易捂住口鼻，换成睡袋更安全' },
     { key: 'crib_bumper', name: '床围', safe: false, hint: '床围有缠绕和窒息风险，不要围在婴儿床边' },
     { key: 'plush', name: '毛绒玩具', safe: false, hint: '宝宝睡觉时，婴儿床里不放毛绒玩具' },
     // 放到床里的东西（床垫/睡袋/袜子）vanish：飞入床中后隐藏
-    { key: 'sleep_bag', name: '睡袋', safe: true, slot: new Vec2(198, -72), scale: 0.75, z: 35, vanish: true },
+    { key: 'sleep_bag', name: '睡袋', safe: true, slot: new Vec2(-232, -58), scale: 0.75, z: 35, vanish: true },
     { key: 'hat', name: '帽子', safe: false, hint: '睡觉时不给宝宝戴帽子' },
-    { key: 'socks', name: '智能监控袜', safe: true, slot: new Vec2(232, -88), scale: 0.45, z: 36, vanish: true },
+    { key: 'socks', name: '智能监控袜', safe: true, slot: new Vec2(-208, -64), scale: 0.45, z: 36, vanish: true },
     { key: 'mobile', name: '床铃', safe: false, hint: '床铃要挂在宝宝够不到的位置，睡觉前先移开' },
-    // 收纳筐放在婴儿床前的地毯上；小夜灯放在大床与婴儿床之间的空地
+    // 收纳筐放在右侧地毯上；小夜灯放在婴儿床前的地板上
     { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(215, -205), scale: 1.15, z: 40 },
-    { key: 'night_light', name: '小夜灯', safe: true, slot: new Vec2(70, -85), scale: 0.6, z: 40 },
+    { key: 'night_light', name: '小夜灯', safe: true, slot: new Vec2(-276, -212), scale: 0.6, z: 40 },
 ];
 
 const SAFE_COUNT = ITEMS.filter((d) => d.safe).length;
@@ -446,7 +448,7 @@ export class SleepRoomView {
     private showBang(): void {
         const n = new Node('bang');
         this.root.addChild(n);
-        ui(n, 56, 56, 285, 22);
+        ui(n, 56, 56, -272, 62);
         const g = n.addComponent(Graphics);
         g.fillColor = new Color(245, 130, 40);
         g.circle(0, 0, 28);
