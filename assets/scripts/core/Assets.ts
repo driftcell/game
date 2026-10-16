@@ -56,9 +56,10 @@ const MANIFEST: Record<string, string> = {
     lotion: 'img/prop/lotion',
     pad: 'img/prop/pad',
     clothes: 'img/prop/clothes',
-    // 暂无图的占位（换高清图时直接覆盖同名文件即可）
+    // 设计稿未覆盖的道具（爽身粉/热水杯/护臀膏）：AI 生图（白底）+ 抠图归一化，见 skill art-gen
     powder: 'img/prop/powder',
     cup: 'img/prop/cup',
+    cream: 'img/prop/cream',
 };
 
 class ImgRegistry {
