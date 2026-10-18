@@ -14,7 +14,7 @@ interface ItemDef {
     vanish?: boolean;     // 放到床里：飞入后淡出销毁，不做重叠显示
 }
 
-/** 顺序与设计稿物品栏三页一致：5 / 5 / 2
+/** 顺序沿用设计稿物品栏，小夜灯移出玩法后为 5 / 5 / 1
  *  坐标按设计稿房间切片 1:1 换算（设计稿 4x 像素 ÷2 转游戏坐标）：
  *  婴儿床放在大床左侧（贴左床脚，还原设计稿「床就放在我们床的旁边」） */
 const ITEMS: ItemDef[] = [
@@ -29,9 +29,8 @@ const ITEMS: ItemDef[] = [
     { key: 'hat', name: '帽子', safe: false, hint: '睡觉时不给宝宝戴帽子' },
     { key: 'socks', name: '智能监控袜', safe: true, slot: new Vec2(-208, -64), scale: 0.45, z: 36, vanish: true },
     { key: 'mobile', name: '床铃', safe: false, hint: '床铃要挂在宝宝够不到的位置，睡觉前先移开' },
-    // 收纳筐放在婴儿床外侧（左侧地板，和床沿平齐）；小夜灯放在床左侧床头柜上
-    { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(-300, -190), scale: 1.0, z: 40 },
-    { key: 'night_light', name: '小夜灯', safe: true, slot: new Vec2(-243, 138), scale: 0.55, z: 40 },
+    // 收纳筐放房间右下角；小夜灯不进玩法（右侧床头柜已自带台灯）
+    { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(285, -275), scale: 1.0, z: 40 },
 ];
 
 const SAFE_COUNT = ITEMS.filter((d) => d.safe).length;
@@ -52,7 +51,7 @@ const PANEL_CY = PANEL_TOP - PANEL_H / 2;
 /**
  * 第一章小游戏：布置安全睡眠区。
  * 从底部物品栏把物品拖进房间：安全物品吸附到预设位置，危险物品弹回并给出安全提示。
- * 物品栏 5/5/2 三页，可左右滑动或点箭头翻页。
+ * 物品栏 5/5/1 三页，可左右滑动或点箭头翻页。
  * 床+床垫放好 → 睡眠空间检查卡（进行中）→ 床上出现「!」观察点（我现在看到的）；
  * 全部放好 → 检查卡（全绿）→ 交还后由 GameApp 接知识卡。
  */
