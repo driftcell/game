@@ -29,8 +29,8 @@ const ITEMS: ItemDef[] = [
     { key: 'hat', name: '帽子', safe: false, hint: '睡觉时不给宝宝戴帽子' },
     { key: 'socks', name: '智能监控袜', safe: true, slot: new Vec2(-208, -64), scale: 0.45, z: 36, vanish: true },
     { key: 'mobile', name: '床铃', safe: false, hint: '床铃要挂在宝宝够不到的位置，睡觉前先移开' },
-    // 收纳筐放房间右下角；小夜灯不进玩法（右侧床头柜已自带台灯）
-    { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(285, -275), scale: 1.0, z: 40 },
+    // 收纳筐放房间右下角地毯上；小夜灯不进玩法（右侧床头柜已自带台灯）
+    { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(235, -210), scale: 1.5, z: 40 },
 ];
 
 const SAFE_COUNT = ITEMS.filter((d) => d.safe).length;
