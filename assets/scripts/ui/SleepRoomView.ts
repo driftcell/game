@@ -3,7 +3,8 @@ import { Img } from '../core/Assets';
 import { block, button, Col, DH, DW, label, labelInBox, layer, opacity, paintBlock, ui } from '../core/UITheme';
 
 interface ItemDef {
-    key: string;          // 资源 key
+    key: string;          // 物品栏卡片资源 key
+    sceneKey?: string;    // 放进房间时使用的场景切图（默认与卡片同图）
     name: string;         // 卡片文字
     safe: boolean;        // 安全物品：吸附摆放；否则弹回并提示
     hint?: string;        // 不安全物品的说明
@@ -17,7 +18,7 @@ interface ItemDef {
  *  坐标按设计稿房间切片 1:1 换算（设计稿 4x 像素 ÷2 转游戏坐标）：
  *  婴儿床放在大床左侧（贴左床脚，还原设计稿「床就放在我们床的旁边」） */
 const ITEMS: ItemDef[] = [
-    { key: 'crib', name: '婴儿床', safe: true, slot: new Vec2(-236, -50), scale: 2.5, z: 30 },
+    { key: 'crib', sceneKey: 'crib_scene', name: '婴儿床', safe: true, slot: new Vec2(-231, -42), scale: 1.96, z: 30 },
     { key: 'mattress', name: '坚实床垫', safe: true, slot: new Vec2(-236, -52), scale: 1.5, z: 0, vanish: true },
     { key: 'pillow', name: '枕头', safe: false, hint: '1 岁前不需要枕头，会增加窒息风险' },
     { key: 'quilt', name: '被子', safe: false, hint: '被子容易捂住口鼻，换成睡袋更安全' },
@@ -36,6 +37,8 @@ const ITEMS: ItemDef[] = [
 const SAFE_COUNT = ITEMS.filter((d) => d.safe).length;
 const PAGE_SIZE = 5;
 const CARD_W = 126;
+/** 物品图标统一留出内边距，避免高/宽尺寸不同的切图顶到卡片边缘 */
+const ICON_W = 84;
 const CARD_GAP = 16;
 const CARD_Y = 74;          // 面板局部坐标
 const LABEL_Y = -45;
@@ -184,8 +187,8 @@ export class SleepRoomView {
         let x = -totalW / 2 + CARD_W / 2;
         for (const def of items) {
             const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
-            Img.sprite(card, def.key, 92, 0, 6);
-            label(this.cardLayer, def.name, { size: 24, color: new Color(242, 234, 238) }, x, LABEL_Y);
+            Img.sprite(card, def.key, ICON_W, 0, 6);
+            label(this.cardLayer, def.name, { size: 22, color: new Color(242, 234, 238) }, x, LABEL_Y);
             if (this.placed.has(def.key)) opacity(card).opacity = 100;
             this.cards.push({ def, x, node: card });
             x += CARD_W + CARD_GAP;
@@ -249,7 +252,7 @@ export class SleepRoomView {
             this.axis = this.dragDef && Math.abs(dy) >= Math.abs(dx) ? 'drag' : 'swipe';
             if (this.axis === 'drag' && this.dragDef) {
                 const s = this.dragDef.scale ?? 1;
-                this.ghost = Img.sprite(this.dragLayer, this.dragDef.key, 100 * s, p.x, p.y + 60);
+                this.ghost = Img.sprite(this.dragLayer, this.dragDef.sceneKey ?? this.dragDef.key, 100 * s, p.x, p.y + 60);
                 opacity(this.ghost).opacity = 235;
             }
         }
@@ -327,7 +330,7 @@ export class SleepRoomView {
         if (!def.vanish) {
             const s = def.scale ?? 1;
             const slot = def.slot!;
-            const node = Img.sprite(this.placedLayer, key, 100 * s, slot.x, slot.y);
+            const node = Img.sprite(this.placedLayer, def.sceneKey ?? key, 100 * s, slot.x, slot.y);
             this.placedNodes.set(key, node);
             this.restack();
         }

@@ -35,10 +35,12 @@ const ZONES = [
 /** 每半格内的摆放格：3 列 x 5 行（根坐标绝对值，落在行李箱网格内） */
 const COLS = [-64, 0, 64];
 const ROWS = [166, 120, 74, 28, -18];
-const CHIP = 48;
+const CHIP = 44;            // 小于行距 46，避免相邻物品压到下一格
 
 const PAGE_SIZE = 5;
 const CARD_W = 126;
+/** 物品图标统一留出内边距，避免长图标顶到卡片边缘 */
+const ICON_W = 84;
 const CARD_GAP = 16;
 const CARD_Y = 55;           // 面板局部坐标
 const LABEL_Y = -60;
@@ -213,8 +215,9 @@ export class BagPackView {
         let x = -totalW / 2 + CARD_W / 2;
         for (const def of items) {
             const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
-            Img.sprite(card, def.key, 92, 0, 6);
-            label(this.cardLayer, def.name, { size: 22, color: new Color(242, 234, 238) }, x, LABEL_Y);
+            Img.sprite(card, def.key, ICON_W, 0, 6);
+            // 最长名称「证件和保险信息」7 字，17 号字才能完整落在 126 宽的卡片内
+            label(this.cardLayer, def.name, { size: 17, color: new Color(242, 234, 238) }, x, LABEL_Y);
             if (this.packed.has(def.key)) opacity(card).opacity = 100;
             this.cards.push({ def, x, node: card });
             x += CARD_W + CARD_GAP;

@@ -9,27 +9,105 @@ interface Section {
     options: string[];
 }
 
-/** 生产偏好分区（按原型 FORM_SECS；支持者称呼走 {supporter} 变量替换） */
+interface InfoRow {
+    label: string;
+    value: string;
+}
+
+interface InfoSection {
+    title: string;
+    rows: InfoRow[];
+}
+
+/** 生产偏好分区（中文版分娩计划；支持者称呼走 {supporter} 变量替换）
+ *  按分娩计划模板逐条整理，勾选即表示希望写进自己的计划 */
 const SECTIONS: Section[] = [
-    { title: '环境偏好', type: 'radio', options: ['柔和灯光', '音乐', '减少不必要打扰'] },
-    { title: '支持人员', type: 'radio', options: ['{supporter}', '导乐或其他家人（依据医院政策）'] },
-    { title: '活动与体位', type: 'multi', options: ['走动', '生产球', '不同体位', '根据医学情况调整'] },
-    { title: '疼痛管理', type: 'radio', options: ['非药物方式', '硬膜外镇痛', '届时再决定'] },
-    { title: '医疗沟通', type: 'multi', options: ['解释原因', '益处与风险', '替代方案', '是否需要立即决定'] },
-    { title: '出生后', type: 'multi', options: ['母婴状况允许时与妈妈肌肤接触', '尽早提供喂养机会', '{supporter}剪脐带'] },
-    { title: '若需剖宫产', type: 'multi', options: ['{supporter}尽可能陪同', '及时了解宝宝情况', '术后与妈妈肌肤接触和喂养支持'] },
+    {
+        title: '分娩偏好', type: 'multi', options: [
+            '镇痛：硬膜外镇痛',
+            '静脉通路：需要时建立，用于镇痛准备',
+            '环境：柔和灯光、香薰和音乐',
+            '活动：走动、分娩球、自由体位',
+            '监测：接受定期检查，了解母婴状况',
+            '胎心：优先间歇监测，必要时连续',
+            '宫颈检查：尽量减少',
+            '催产：非医学需要不催产',
+            '饮食：可饮清流质、含冰块',
+            '穿着：病号服或自己的衣物',
+            '紧急决定：由{supporter}代为决定',
+            '拍照：不安排专业摄影，由家人拍照',
+        ],
+    },
+    {
+        title: '用力偏好', type: 'multi', options: [
+            '沟通：助产士指导，{supporter}在旁提醒',
+            '体位：手拉绳索、侧卧或传统仰卧',
+            '会阴：接受自然撕裂，不做侧切',
+        ],
+    },
+    {
+        title: '出生偏好', type: 'multi', options: [
+            '脐带结扎：延迟 2 分钟或至停止搏动',
+            '剪脐带：由{supporter}剪',
+            '脐带血：不储存',
+            '胎盘：等待自然娩出，必要时处理',
+        ],
+    },
+    {
+        title: '新生儿程序', type: 'multi', options: [
+            '黄金一小时：肌肤接触 1 小时',
+            '常规操作：同意维生素 K、眼膏',
+            '乙肝疫苗：暂缓接种',
+            '洗澡：出生 36–48 小时后再洗',
+        ],
+    },
+    {
+        title: '产后偏好', type: 'multi', options: [
+            '肌肤接触：出生后立即开始',
+            '母乳喂养：奶水来后尽早开始',
+            '母婴同室：宝宝 24 小时同室',
+            '探视：产后操作完成后再探视',
+        ],
+    },
 ];
+
+/** 表单顶部的档案信息（不进勾选存储，按当前存档实时生成） */
+function infoSections(): InfoSection[] {
+    return [
+        {
+            title: '基本信息', rows: [
+                { label: '姓名', value: GameState.momName },
+                { label: '当前孕周', value: '孕39周+1天' },
+                { label: '伴侣/支持者', value: GameState.supporterLabel() },
+                { label: '宝宝姓名', value: GameState.babyName },
+                { label: '产检医生', value: '待补充' },
+                { label: '医保/保险', value: '待补充' },
+            ],
+        },
+        {
+            title: '健康信息', rows: [
+                { label: '孕次', value: '第1胎' },
+                { label: '计划分娩方式', value: '顺产（如无医学指征）' },
+                { label: '血型', value: '待补充' },
+                { label: '过敏史', value: '无已知过敏' },
+                { label: '可能影响分娩的情况', value: '无特殊，待医生评估' },
+            ],
+        },
+    ];
+}
 
 const CARD_W = 670;
 const HEADER_H = 92;
 const OPT_H = 74;
+const INFO_HEADER_H = 68;
+const INFO_ROW_H = 42;
 const PAD_TOP = 600;       // 滚动可视区上边界（根坐标）
 const PAD_BOTTOM = -580;   // 下边界（保存按钮以上）
 
 /**
- * 第二章：我的生产偏好（设计稿 待产包-4）。
- * 全屏表单：7 个折叠分区 + 单选/多选；「保存到待产包」收集勾选，
- * 再由「如果只能让他们记住一条…」星标页选出一条最重要的偏好。
+ * 第二章：我的生产偏好（中文版分娩计划）。
+ * 顶部为基本信息 / 健康信息，下面是可折叠的分娩偏好清单（5 组）；
+ * 「保存到待产包」收集勾选，再由「如果只能让他们记住一条…」星标页选出最重要的一条。
  */
 export class PrefsView {
     root: Node;
@@ -98,6 +176,7 @@ export class PrefsView {
         label(this.root, '♥', { size: 46, color: new Color(244, 150, 178) }, 205, 690);
         label(this.root, '✦', { size: 22, color: Col.gold }, -150, 712);
         label(this.root, '✦', { size: 20, color: Col.gold }, 158, 708);
+        label(this.root, '分娩计划（如无医学指征，优先顺产）', { size: 22, color: Col.gray }, 0, 642);
 
         // 滚动区
         const regionH = PAD_TOP - PAD_BOTTOM;
@@ -119,8 +198,37 @@ export class PrefsView {
         const marks: Node[][] = SECTIONS.map((s) => s.options.map(() => null as unknown as Node));
 
         const build = (): void => {
+            const prevY = this.contentH > 0 ? content.position.y : regionH / 2;
             content.removeAllChildren();
             let y = 0;   // content 局部：顶边起向下排
+
+            // 顶部档案信息（基本信息 / 健康信息）
+            infoSections().forEach((sec) => {
+                const cardH = INFO_HEADER_H + sec.rows.length * INFO_ROW_H + 18;
+                const card = block(content, CARD_W, cardH, Col.white, 26, 0, y - cardH / 2, Col.line);
+                const head = block(card, CARD_W - 10, INFO_HEADER_H - 8, new Color(253, 232, 231), 22, 0, cardH / 2 - INFO_HEADER_H / 2);
+                label(head, sec.title, { size: 30, bold: true, color: Col.pinkDeep });
+                sec.rows.forEach((row, ri) => {
+                    const ry = cardH / 2 - INFO_HEADER_H - 9 - INFO_ROW_H / 2 - ri * INFO_ROW_H;
+                    const l = label(card, row.label, { size: 22, color: Col.gray });
+                    l.node.getComponent(UITransform)!.setAnchorPoint(0, 0.5);
+                    l.node.setPosition(-CARD_W / 2 + 36, ry);
+                    const v = label(card, row.value, { size: 22, color: Col.ink });
+                    v.node.getComponent(UITransform)!.setAnchorPoint(1, 0.5);
+                    v.node.setPosition(CARD_W / 2 - 36, ry);
+                    if (ri < sec.rows.length - 1) {
+                        const ln = new Node('rowline');
+                        card.addChild(ln);
+                        ui(ln, CARD_W - 90, 2, 0, ry - INFO_ROW_H / 2);
+                        const lg = ln.addComponent(Graphics);
+                        lg.fillColor = new Color(240, 226, 232);
+                        lg.rect(-(CARD_W - 90) / 2, -1, CARD_W - 90, 2);
+                        lg.fill();
+                    }
+                });
+                y -= cardH + 20;
+            });
+
             SECTIONS.forEach((sec, si) => {
                 const open = this.expanded[si];
                 const bodyH = open ? sec.options.length * OPT_H + 16 : 0;
@@ -201,7 +309,9 @@ export class PrefsView {
             const t = content.getComponent(UITransform)!;
             t.setContentSize(DW, this.contentH);
             t.setAnchorPoint(0.5, 1);
-            content.setPosition(0, regionH / 2, 0);
+            // 展开/收起后保持当前滚动位置，避免长表单跳回顶部
+            const maxUp = Math.max(0, this.contentH - this.viewH);
+            content.setPosition(0, Math.max(regionH / 2, Math.min(regionH / 2 + maxUp, prevY)), 0);
         };
         build();
 

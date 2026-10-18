@@ -38,6 +38,7 @@ const MANIFEST: Record<string, string> = {
     bedroom: 'img/scene/bedroom',
     bedroom_night: 'img/scene/bedroom_night',
     crib: 'img/prop/crib',
+    crib_scene: 'img/prop/crib_scene',
     mattress: 'img/prop/mattress',
     pillow: 'img/prop/pillow',
     quilt: 'img/prop/quilt',

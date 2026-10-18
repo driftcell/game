@@ -7,21 +7,22 @@ interface DiaperItem {
     img?: string;      // 资源 key，默认同 key
     name: string;
     zone: number;      // 0 台面 / 1 抽屉 / 2 收纳筐
+    size: number;      // 放进房间时的显示宽度（按真实物品相对大小设置）
     hint: string;      // 放错区时的温柔科普
 }
 
 /** 顺序按设计稿物品栏分页（5/5，两页）：第一页与设计稿一致（纸尿裤/湿巾/润肤乳/隔尿垫/干净衣物） */
 const ITEMS: DiaperItem[] = [
-    { key: 'diaper', name: '纸尿裤', zone: 0, hint: '纸尿裤每次都要用，放在伸手即取的台面上' },
-    { key: 'wipes', name: '湿巾', zone: 0, hint: '湿巾每次换尿布都要用，放在台面上' },
-    { key: 'lotion', name: '润肤乳', zone: 0, hint: '润肤乳每次都可能用，放台面伸手即取' },
-    { key: 'pad', name: '隔尿垫', zone: 0, hint: '隔尿垫垫在宝宝身下，放台面随手拿' },
-    { key: 'clothes', name: '干净衣物', zone: 1, hint: '备用的干净衣物收进抽屉，用的时候再拿' },
-    { key: 'diaper2', img: 'diaper', name: '备用纸尿裤', zone: 1, hint: '囤货的纸尿裤收进抽屉，台面上只留几片' },
-    { key: 'powder', name: '爽身粉', zone: 2, hint: '粉末容易被宝宝吸入，收起来不要用' },
-    { key: 'cup', name: '热水杯', zone: 2, hint: '热水杯放在尿布台边有烫伤风险，拿远一点' },
-    { key: 'plush', name: '毛绒玩具', zone: 2, hint: '毛绒玩具先收起来，换尿布时容易掉下来' },
-    { key: 'phone', name: '手机', zone: 2, hint: '换尿布时不看手机，宝宝一秒都不能离开视线' },
+    { key: 'diaper', name: '纸尿裤', zone: 0, size: 34, hint: '纸尿裤每次都要用，放在伸手即取的台面上' },
+    { key: 'wipes', name: '湿巾', zone: 0, size: 40, hint: '湿巾每次换尿布都要用，放在台面上' },
+    { key: 'lotion', name: '润肤乳', zone: 0, size: 32, hint: '润肤乳每次都可能用，放台面伸手即取' },
+    { key: 'pad', name: '隔尿垫', zone: 0, size: 54, hint: '隔尿垫垫在宝宝身下，放台面随手拿' },
+    { key: 'clothes', name: '干净衣物', zone: 1, size: 36, hint: '备用的干净衣物收进抽屉，用的时候再拿' },
+    { key: 'diaper2', img: 'diaper', name: '备用纸尿裤', zone: 1, size: 30, hint: '囤货的纸尿裤收进抽屉，台面上只留几片' },
+    { key: 'powder', name: '爽身粉', zone: 2, size: 28, hint: '粉末容易被宝宝吸入，收起来不要用' },
+    { key: 'cup', name: '热水杯', zone: 2, size: 30, hint: '热水杯放在尿布台边有烫伤风险，拿远一点' },
+    { key: 'plush', name: '毛绒玩具', zone: 2, size: 38, hint: '毛绒玩具先收起来，换尿布时容易掉下来' },
+    { key: 'phone', name: '手机', zone: 2, size: 26, hint: '换尿布时不看手机，宝宝一秒都不能离开视线' },
 ];
 
 const ZONE_COLORS = [Col.pink, new Color(240, 170, 90), Col.gray];
@@ -32,7 +33,6 @@ const SLOTS: [number, number][][] = [
     [[38, 183], [44, 146], [82, 148]],
     [[158, -58], [212, -58], [158, -110], [212, -110]],
 ];
-const SLOT_SIZE = [48, 38, 46];
 /** 高亮框（根坐标） */
 const FRAMES = [
     { x: 40, y: 262, w: 200, h: 140 },
@@ -42,6 +42,8 @@ const FRAMES = [
 
 const PAGE_SIZE = 5;
 const CARD_W = 126;
+/** 物品图标统一留出内边距，避免高/宽尺寸不同的切图顶到卡片边缘 */
+const ICON_W = 84;
 const CARD_GAP = 16;
 const CARD_Y = 55;           // 面板局部坐标
 const LABEL_Y = -60;
@@ -187,8 +189,8 @@ export class DiaperStationView {
         let x = -totalW / 2 + CARD_W / 2;
         for (const def of items) {
             const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
-            Img.icon(card, def.img ?? def.key, def.name, 92, 0, 6);
-            label(this.cardLayer, def.name, { size: 24, color: new Color(242, 234, 238) }, x, LABEL_Y);
+            Img.icon(card, def.img ?? def.key, def.name, ICON_W, 0, 6);
+            label(this.cardLayer, def.name, { size: 22, color: new Color(242, 234, 238) }, x, LABEL_Y);
             if (this.placed.has(def.key)) opacity(card).opacity = 100;
             this.cards.push({ def, x, node: card });
             x += CARD_W + CARD_GAP;
@@ -277,7 +279,7 @@ export class DiaperStationView {
             if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;
             this.axis = this.dragDef && Math.abs(dy) >= Math.abs(dx) ? 'drag' : 'swipe';
             if (this.axis === 'drag' && this.dragDef) {
-                this.ghost = Img.icon(this.dragLayer, this.dragDef.img ?? this.dragDef.key, this.dragDef.name, 100, p.x, p.y + 60);
+                this.ghost = Img.icon(this.dragLayer, this.dragDef.img ?? this.dragDef.key, this.dragDef.name, this.dragDef.size * 2, p.x, p.y + 60);
                 opacity(this.ghost).opacity = 235;
             }
         }
@@ -345,7 +347,7 @@ export class DiaperStationView {
     }
 
     private spawnPlaced(def: DiaperItem, x: number, y: number): void {
-        const n = Img.icon(this.placedLayer, def.img ?? def.key, def.name, SLOT_SIZE[def.zone], x, y);
+        const n = Img.icon(this.placedLayer, def.img ?? def.key, def.name, def.size, x, y);
         n.setScale(0.7, 0.7, 1);
         tween(n).to(0.12, { scale: new Vec3(1.06, 1.06, 1) }).to(0.1, { scale: new Vec3(1, 1, 1) }).start();
     }

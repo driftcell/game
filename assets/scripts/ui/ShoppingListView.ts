@@ -31,6 +31,8 @@ const COLS = [
 
 const PAGE_SIZE = 5;
 const CARD_W = 126;
+/** 物品图标统一留出内边距，避免高/宽尺寸不同的切图顶到卡片边缘 */
+const ICON_W = 84;
 const CARD_GAP = 16;
 const CARD_Y = 55;           // 面板局部坐标
 const LABEL_Y = -60;
@@ -190,8 +192,8 @@ export class ShoppingListView {
         let x = -totalW / 2 + CARD_W / 2;
         for (const def of items) {
             const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
-            Img.icon(card, def.key, def.name, 92, 0, 6);
-            label(this.cardLayer, def.name, { size: 24, color: new Color(242, 234, 238) }, x, LABEL_Y);
+            Img.icon(card, def.key, def.name, ICON_W, 0, 6);
+            label(this.cardLayer, def.name, { size: 22, color: new Color(242, 234, 238) }, x, LABEL_Y);
             if (this.placed.has(def.key)) opacity(card).opacity = 100;
             this.cards.push({ def, x, node: card });
             x += CARD_W + CARD_GAP;
