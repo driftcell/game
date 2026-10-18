@@ -17,7 +17,8 @@ export type Speaker = 'mom' | 'supporter' | 'xiaozhi';
 export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night' | 'bedroom-setup';
 
 export type Step =
-    | { k: 'dialog'; who: Speaker; text: string }
+    // text 可为函数：用于需要按运行时状态（如弹窗输入结果）决定台词的场景
+    | { k: 'dialog'; who: Speaker; text: string | (() => string) }
     | { k: 'choices'; hint?: string; sheet?: string; options: { t: string; then?: Step[] }[] }
     | { k: 'thought'; text: string }
     | { k: 'scene'; s: SceneKind }
@@ -59,7 +60,8 @@ async function runStep(ctx: Ctx, s: Step): Promise<void> {
             const info = speakerInfo(s.who);
             ctx.portraits.show(info.portrait);
             ctx.dialog.root.active = true;
-            await ctx.dialog.say(info.label, Col.pinkDeep, GameState.subst(s.text));
+            const raw = typeof s.text === 'function' ? s.text() : s.text;
+            await ctx.dialog.say(info.label, Col.pinkDeep, GameState.subst(raw));
             break;
         }
         case 'choices': {

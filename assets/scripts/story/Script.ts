@@ -13,6 +13,8 @@ export interface Segment {
 /* ---------------------------------- 序幕 ---------------------------------- */
 
 function openingSteps(): Step[] {
+    // 「自己输入名字」与「暂时叫宝宝」要有不同的回应，用局部标记跨步骤传递本次选择
+    let babyNamed = false;
     return [
         { k: 'dialog', who: 'xiaozhi', text: '欢迎来到《和你一起长大30天》。在故事开始前，你希望大家怎么称呼你？' },
         {
@@ -49,11 +51,16 @@ function openingSteps(): Step[] {
         {
             k: 'ui', run: async (ctx) => {
                 const r = await ctx.popup.input({ title: '你现在怎么称呼肚子里的宝宝？', placeholder: '小月亮', altLabel: '暂时叫宝宝' });
-                GameState.babyName = r.alt ? '宝宝' : (r.value || '宝宝');
+                babyNamed = !r.alt && !!r.value;
+                GameState.babyName = babyNamed ? r.value : '宝宝';
                 GameState.save();
             },
         },
-        { k: 'dialog', who: 'xiaozhi', text: '正式名字可以以后再决定。现在，我们先用你最自然的称呼陪宝宝进入故事。' },
+        {
+            k: 'dialog', who: 'xiaozhi', text: () => (babyNamed
+                ? '好的，{baby}。从现在起，我们就用这个名字，一起等TA来。'
+                : '正式名字可以以后再决定。现在，我们先用你最自然的称呼陪宝宝进入故事。'),
+        },
 
         { k: 'achieve', name: '我们的故事开始了' },
     ];
