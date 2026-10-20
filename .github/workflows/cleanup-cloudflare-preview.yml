@@ -1,0 +1,38 @@
+name: cleanup-cloudflare-preview
+
+# PR 关闭后删除对应的 Cloudflare Preview，避免预览环境一直堆积。
+# 使用 pull_request_target 是为了让 fork PR 关闭时也能拿到 secrets；
+# 这里不会 checkout 任何代码，只按 PR 编号执行固定的删除命令。
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER_VERSION: "4.151.2"
+
+jobs:
+  delete-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Delete Cloudflare preview
+        # Preview 可能因为 fork PR 没部署过而不存在，删除失败不阻塞 PR 关闭。
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "CLOUDFLARE_API_TOKEN 未配置，跳过预览清理。"
+            exit 0
+          fi
+
+          npx --yes "wrangler@${WRANGLER_VERSION}" preview delete \
+            --name "pr-${{ github.event.pull_request.number }}" \
+            --worker-name game \
+            --skip-confirmation

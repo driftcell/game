@@ -1,0 +1,296 @@
+name: build-web-mobile
+
+# 说明：
+# GitHub 托管的 windows-* runner 不支持 container jobs（container 只能跑在 Linux runner 上），
+# 所以这里直接使用 Windows Server 2022 runner，而不是 Windows 容器。
+# Cocos Creator 的版本通过下面的 COCOS_VERSION / COCOS_WIN_BUILD 固定，并整体缓存到 C:\cocos。
+#
+# 如果你有自托管 Windows runner + Docker，并且镜像里带桌面环境，可以把 runs-on 换成
+# [self-hosted, windows, x64] 并启用 container（Server Core 镜像缺少 Cocos 需要的 GUI 会话）。
+#
+# Cloudflare 部署（wrangler.jsonc）：
+#   - main / tag / workflow_dispatch：部署生产 Worker game（game.<subdomain>.workers.dev）
+#   - pull_request：部署到 game Worker 的 Preview（pr-<number>-game.<subdomain>.workers.dev）
+# 需要在仓库 Secrets 中配置：
+#   CLOUDFLARE_API_TOKEN（Workers Scripts:Edit + Account Settings:Read）
+#   CLOUDFLARE_ACCOUNT_ID
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # PR 预览部署成功后，用 GITHUB_TOKEN 在 PR 里评论预览地址
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: build-web-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 与 package.json 中 creator.version 保持一致；升级编辑器时同步修改这两项。
+  # Windows 包名里的构建号可从官方版本接口获取：
+  # https://creator-api.cocos.com/api/cocoshub/editor_version_list?lang=zh&ver=2.3.2
+  COCOS_VERSION: "3.8.8"
+  COCOS_WIN_BUILD: "121518"
+  COCOS_HOME: C:\cocos\3.8.8
+
+  # 固定 wrangler 版本；wrangler preview 需要 4.135.0+。
+  WRANGLER_VERSION: "4.151.2"
+
+jobs:
+  build-web-mobile:
+    name: web-mobile (${{ github.ref_name }})
+    runs-on: windows-2022
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 编辑器约 1 GB，缓存整个解压后的目录，后续构建无需重新下载和解压。
+      # 用 restore/save 分开，安装完立刻保存缓存；即使后面的构建失败，下次也不用重新下载。
+      - name: Restore Cocos Creator ${{ env.COCOS_VERSION }}
+        id: cocos-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.COCOS_HOME }}
+          key: cocos-creator-${{ env.COCOS_VERSION }}-win-${{ env.COCOS_WIN_BUILD }}-v1
+
+      - name: Install Cocos Creator ${{ env.COCOS_VERSION }}
+        if: steps.cocos-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $url = "https://download.cocos.com/CocosCreator/v${env:COCOS_VERSION}/CocosCreator-v${env:COCOS_VERSION}-win-${env:COCOS_WIN_BUILD}.zip"
+          $zip = Join-Path $env:RUNNER_TEMP "CocosCreator-v${env:COCOS_VERSION}-win.zip"
+
+          New-Item -ItemType Directory -Force -Path $env:COCOS_HOME | Out-Null
+
+          Write-Host "Downloading $url"
+          curl.exe -L --fail --retry 3 --retry-delay 5 --retry-all-errors `
+            --silent --show-error -o $zip $url
+          if ($LASTEXITCODE -ne 0) {
+            throw "下载 Cocos Creator 失败（curl exit code $LASTEXITCODE）"
+          }
+          Write-Host ("Downloaded {0:N1} MB" -f ((Get-Item $zip).Length / 1MB))
+
+          $sevenZip = Join-Path $env:ProgramFiles '7-Zip\7z.exe'
+          if (Test-Path $sevenZip) {
+            # -bso0/-bsp0 关闭 5 万多个文件的滚动输出
+            & $sevenZip x $zip "-o$env:COCOS_HOME" -y -bso0 -bsp0
+            if ($LASTEXITCODE -ne 0) {
+              throw "解压 Cocos Creator 失败（7-Zip exit code $LASTEXITCODE）"
+            }
+          } else {
+            Expand-Archive -Path $zip -DestinationPath $env:COCOS_HOME -Force
+          }
+
+          Remove-Item $zip -Force
+
+          $editor = Join-Path $env:COCOS_HOME 'CocosCreator.exe'
+          if (!(Test-Path $editor)) {
+            throw "解压完成但未找到 $editor"
+          }
+          Write-Host "Cocos Creator installed at $env:COCOS_HOME"
+
+      - name: Verify Cocos Creator
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $editor = Join-Path $env:COCOS_HOME 'CocosCreator.exe'
+          if (!(Test-Path $editor)) {
+            throw "未找到 $editor；请删除 Actions 缓存 cocos-creator-${env:COCOS_VERSION}-* 后重试"
+          }
+          $version = (Get-Item $editor).VersionInfo.ProductVersion
+          Write-Host "Cocos Creator: $editor ($version)"
+
+      - name: Save Cocos Creator cache
+        if: steps.cocos-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.COCOS_HOME }}
+          key: cocos-creator-${{ env.COCOS_VERSION }}-win-${{ env.COCOS_WIN_BUILD }}-v1
+
+      - name: Build web-mobile
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $editor = Join-Path $env:COCOS_HOME 'CocosCreator.exe'
+          $dist = Join-Path $env:GITHUB_WORKSPACE 'dist'
+
+          # dist/ 曾经提交在仓库里；先删掉，确保后面校验的是本次构建产物。
+          if (Test-Path $dist) {
+            Remove-Item $dist -Recurse -Force
+          }
+
+          $buildArgs = "platform=web-mobile;buildPath=${env:GITHUB_WORKSPACE};outputName=dist;md5Cache=true"
+          $stdout = Join-Path $env:RUNNER_TEMP 'cocos-build.log'
+          $stderr = Join-Path $env:RUNNER_TEMP 'cocos-build.err.log'
+
+          Write-Host "Editor:     $editor"
+          Write-Host "Project:    $env:GITHUB_WORKSPACE"
+          Write-Host "Build args: $buildArgs"
+
+          # CocosCreator.exe 是 GUI 子系统程序，直接用 & 调用不会等待；用 Start-Process -Wait 拿退出码。
+          $proc = Start-Process -FilePath $editor `
+            -ArgumentList @('--project', $env:GITHUB_WORKSPACE, '--build', $buildArgs) `
+            -WorkingDirectory $env:COCOS_HOME `
+            -NoNewWindow -Wait -PassThru `
+            -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+
+          Write-Host '---------------- Cocos Creator stdout ----------------'
+          if (Test-Path $stdout) { Get-Content $stdout -Tail 400 }
+          Write-Host '---------------- Cocos Creator stderr ----------------'
+          if (Test-Path $stderr) { Get-Content $stderr -Tail 200 }
+
+          Write-Host "Cocos Creator exit code: $($proc.ExitCode)"
+
+          # 官方约定：36 = 构建成功；兼容部分版本返回 0 的情况。
+          if ($proc.ExitCode -ne 36 -and $proc.ExitCode -ne 0) {
+            throw "Cocos Creator 构建失败（exit code $($proc.ExitCode)）"
+          }
+
+          if (!(Test-Path (Join-Path $dist 'index.html'))) {
+            throw "构建结束但缺少 dist/index.html"
+          }
+
+          Write-Host "Build output: $dist"
+
+      - name: Upload web-mobile artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-mobile
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      # main / tag / 手动触发：更新生产 Worker。
+      - name: Deploy to Cloudflare Worker (production)
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ([string]::IsNullOrWhiteSpace($env:CLOUDFLARE_API_TOKEN)) {
+            throw "缺少 CLOUDFLARE_API_TOKEN secret，无法部署生产 Worker"
+          }
+          if ([string]::IsNullOrWhiteSpace($env:CLOUDFLARE_ACCOUNT_ID)) {
+            throw "缺少 CLOUDFLARE_ACCOUNT_ID secret，无法部署生产 Worker"
+          }
+
+          npx --yes "wrangler@$env:WRANGLER_VERSION" deploy `
+            --message "GitHub Actions $env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) {
+            throw "wrangler deploy 失败（exit code $LASTEXITCODE）"
+          }
+
+      # PR：部署到同一 Worker 下的独立 Preview，不影响生产。
+      # 地址稳定为 https://pr-<number>-game.<subdomain>.workers.dev
+      - name: Deploy Cloudflare preview (pull request)
+        id: preview
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # Fork PR 默认拿不到仓库 secrets，不尝试部署，避免把构建跑红。
+          $isFork = '${{ github.event.pull_request.head.repo.fork }}' -eq 'true'
+          if ([string]::IsNullOrWhiteSpace($env:CLOUDFLARE_API_TOKEN) -or
+              [string]::IsNullOrWhiteSpace($env:CLOUDFLARE_ACCOUNT_ID)) {
+            if ($isFork) {
+              Write-Warning "Fork PR 不共享 repository secrets，跳过 Cloudflare 预览部署"
+              exit 0
+            }
+            throw "缺少 CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secret，无法部署 PR 预览"
+          }
+
+          $previewName = "pr-${{ github.event.pull_request.number }}"
+          $stderr = Join-Path $env:RUNNER_TEMP 'wrangler-preview.err.log'
+
+          $raw = ((npx --yes "wrangler@$env:WRANGLER_VERSION" preview `
+            --name $previewName `
+            --message "PR #${{ github.event.pull_request.number }} $env:GITHUB_SHA" `
+            --json 2> $stderr) -join "`n")
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host $raw
+            if (Test-Path $stderr) { Get-Content $stderr }
+            throw "wrangler preview 失败（exit code $LASTEXITCODE）"
+          }
+
+          # --json 会在 JSON 前打印资源上传进度，这里从第一个 "preview" 对象开始截取。
+          $match = [regex]::Match($raw, '(?s)\{\s*"preview"\s*:')
+          if (-not $match.Success) {
+            Write-Host $raw
+            throw "无法从 wrangler preview 输出中解析 JSON"
+          }
+          $preview = $raw.Substring($match.Index) | ConvertFrom-Json
+          $urls = @($preview.preview.urls)
+          $url = $urls[0]
+          if ([string]::IsNullOrWhiteSpace($url)) {
+            throw "wrangler preview 没有返回 Preview URL"
+          }
+
+          Write-Host "Cloudflare Preview: $url"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "url=$url"
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Cloudflare Preview`n`n[$url]($url)"
+
+      - name: Comment preview URL on pull request
+        if: github.event_name == 'pull_request' && steps.preview.outputs.url != ''
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- cloudflare-preview -->';
+            const body = [
+              marker,
+              '### Cloudflare 预览',
+              '',
+              `预览地址：${process.env.PREVIEW_URL}`,
+              '',
+              `提交：\`${context.sha.slice(0, 7)}\``,
+              '',
+              '_此评论由 GitHub Actions 自动更新。_',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const previous = comments.find((comment) => comment.body?.includes(marker));
+
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: previous.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }

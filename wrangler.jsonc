@@ -1,0 +1,20 @@
+{
+  // Cloudflare Worker 名称；首次 `wrangler deploy` 时自动创建。
+  "name": "game",
+
+  // 固定运行时兼容日期，避免 Cloudflare 默认值变化影响构建。
+  "compatibility_date": "2026-10-20",
+
+  // 开启 workers.dev 地址和每次部署的版本预览地址。
+  "workers_dev": true,
+  "preview_urls": true,
+
+  // PR / 分支预览（wrangler preview）继承生产配置；有独立变量时再填这里。
+  "previews": {},
+
+  // Cocos Creator 的 web-mobile 构建产物目录。
+  // CI 先在 Windows 上构建出 dist/，再由 wrangler 将整个目录作为静态资源上传。
+  "assets": {
+    "directory": "./dist"
+  }
+}
