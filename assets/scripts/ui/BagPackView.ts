@@ -1,6 +1,7 @@
 import { Button, Color, EventTouch, Graphics, Label, Node, Tween, tween, UITransform, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, Col, DH, DW, label, labelInBox, layer, opacity, paintBlock, ui } from '../core/UITheme';
+import { FRAME_BAG_ROOM, sceneBackground } from './SceneView';
 
 interface BagItem {
     key: string;       // 资源 key
@@ -97,7 +98,7 @@ export class BagPackView {
         catcher.on(Node.EventType.TOUCH_END, () => { /* 吞掉 */ });
 
         // 房间背景（弹窗页的设计稿版本：略微提亮的卧室）
-        Img.sprite(this.root, 'bedroom_bag', DW, 0, 0);
+        sceneBackground(this.root, 'bedroom_bag', FRAME_BAG_ROOM, Col.pinkPale);
 
         // 弹窗卡片
         const pop = block(this.root, POPUP.w, POPUP.h, new Color(255, 243, 238), POPUP.r, 0, POPUP.cy);

@@ -1,6 +1,7 @@
 import { Color, EventTouch, Graphics, Label, Node, Tween, tween, UITransform, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, Col, DH, DW, label, labelInBox, layer, opacity, paintBlock, ui } from '../core/UITheme';
+import { FRAME_DIAPER_ROOM, frameLength, framePoint, sceneBackground, unframePoint } from './SceneView';
 
 interface DiaperItem {
     key: string;       // 唯一 id
@@ -26,7 +27,7 @@ const ITEMS: DiaperItem[] = [
 ];
 
 const ZONE_COLORS = [Col.pink, new Color(240, 170, 90), Col.gray];
-/** 放置位（根坐标，按设计稿房间切图定位）：
+/** 放置位（取景前坐标，按设计稿房间切图定位，使用时按 FRAME_DIAPER_ROOM 换算）：
  *  台面 = 尿布台台面 2x2；抽屉 = 台下两层搁板；收纳筐 = 台前地板上的筐 */
 const SLOTS: [number, number][][] = [
     [[24, 244], [64, 242], [12, 280], [52, 278]],
@@ -92,9 +93,10 @@ export class DiaperStationView {
         catcher.on(Node.EventType.TOUCH_START, () => { /* 吞掉 */ });
         catcher.on(Node.EventType.TOUCH_END, () => { /* 吞掉 */ });
 
-        Img.sprite(this.root, 'bedroom_diaper', DW, 0, 0);
+        sceneBackground(this.root, 'bedroom_diaper', FRAME_DIAPER_ROOM, Col.pinkPale);
         // 收纳筐放在尿布台前的地板上（设计稿房间无筐，游戏按玩法补一只）
-        Img.sprite(this.root, 'basket', 140, 185, -70);
+        const basket = framePoint(FRAME_DIAPER_ROOM, 185, -70);
+        Img.sprite(this.root, 'basket', frameLength(FRAME_DIAPER_ROOM, 140), basket.x, basket.y);
 
         // 三处高亮框（拖拽悬停时描边）
         FRAMES.forEach(() => {
@@ -232,9 +234,12 @@ export class DiaperStationView {
             g.clear();
             if (i === this.hoverZone) {
                 const f = FRAMES[i];
+                const c = framePoint(FRAME_DIAPER_ROOM, f.x, f.y);
+                const w = frameLength(FRAME_DIAPER_ROOM, f.w);
+                const h = frameLength(FRAME_DIAPER_ROOM, f.h);
                 g.strokeColor = ZONE_COLORS[i];
                 g.lineWidth = 6;
-                g.roundRect(f.x - f.w / 2, f.y - f.h / 2, f.w, f.h, 16);
+                g.roundRect(c.x - w / 2, c.y - h / 2, w, h, frameLength(FRAME_DIAPER_ROOM, 16));
                 g.stroke();
             }
         });
@@ -247,9 +252,11 @@ export class DiaperStationView {
     }
 
     private hitZone(p: Vec3): number {
-        if (Math.abs(p.x - 40) <= 115 && p.y >= 195 && p.y <= 345) return 0;
-        if (Math.abs(p.x - 58) <= 95 && p.y >= 105 && p.y <= 195) return 1;
-        if (Math.abs(p.x - 185) <= 110 && p.y >= -180 && p.y <= 10) return 2;
+        // 先反算回设计稿坐标，命中区仍按原房间切图坐标判断
+        const q = unframePoint(FRAME_DIAPER_ROOM, p.x, p.y);
+        if (Math.abs(q.x - 40) <= 115 && q.y >= 195 && q.y <= 345) return 0;
+        if (Math.abs(q.x - 58) <= 95 && q.y >= 105 && q.y <= 195) return 1;
+        if (Math.abs(q.x - 185) <= 110 && q.y >= -180 && q.y <= 10) return 2;
         return -1;
     }
 
@@ -279,7 +286,8 @@ export class DiaperStationView {
             if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;
             this.axis = this.dragDef && Math.abs(dy) >= Math.abs(dx) ? 'drag' : 'swipe';
             if (this.axis === 'drag' && this.dragDef) {
-                this.ghost = Img.icon(this.dragLayer, this.dragDef.img ?? this.dragDef.key, this.dragDef.name, this.dragDef.size * 2, p.x, p.y + 60);
+                const size = frameLength(FRAME_DIAPER_ROOM, this.dragDef.size * 2);
+                this.ghost = Img.icon(this.dragLayer, this.dragDef.img ?? this.dragDef.key, this.dragDef.name, size, p.x, p.y + 60);
                 opacity(this.ghost).opacity = 235;
             }
         }
@@ -330,7 +338,7 @@ export class DiaperStationView {
         if (zone === def.zone) {
             this.placed.add(def.key);
             const idx = this.zoneCounts[def.zone]++;
-            const [tx, ty] = SLOTS[def.zone][idx];
+            const [tx, ty] = this.sceneSlot(def.zone, idx);
             tween(ghost)
                 .to(0.18, { position: new Vec3(tx, ty, 0) })
                 .call(() => {
@@ -346,8 +354,16 @@ export class DiaperStationView {
         }
     }
 
+    /** 放置位按背景取景换算，保持道具与台面/抽屉/收纳筐对齐 */
+    private sceneSlot(zone: number, idx: number): [number, number] {
+        const [x, y] = SLOTS[zone][idx];
+        const p = framePoint(FRAME_DIAPER_ROOM, x, y);
+        return [p.x, p.y];
+    }
+
     private spawnPlaced(def: DiaperItem, x: number, y: number): void {
-        const n = Img.icon(this.placedLayer, def.img ?? def.key, def.name, def.size, x, y);
+        const size = frameLength(FRAME_DIAPER_ROOM, def.size);
+        const n = Img.icon(this.placedLayer, def.img ?? def.key, def.name, size, x, y);
         n.setScale(0.7, 0.7, 1);
         tween(n).to(0.12, { scale: new Vec3(1.06, 1.06, 1) }).to(0.1, { scale: new Vec3(1, 1, 1) }).start();
     }
@@ -358,7 +374,7 @@ export class DiaperStationView {
         if (!def || this.placed.has(key)) return;
         this.placed.add(key);
         const idx = this.zoneCounts[def.zone]++;
-        const [tx, ty] = SLOTS[def.zone][idx];
+        const [tx, ty] = this.sceneSlot(def.zone, idx);
         this.spawnPlaced(def, tx, ty);
         this.renderPage();
         if (this.placed.size >= ITEMS.length) this.finish();
