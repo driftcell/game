@@ -1,6 +1,7 @@
 import { Button, Color, EventTouch, Graphics, HorizontalTextAlignment, Label, Node, Tween, tween, UITransform, Vec2, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, button, Col, DH, DW, label, labelInBox, layer, opacity, paintBlock, ui } from '../core/UITheme';
+import { FRAME_SLEEP_ROOM, frameLength, framePoint, sceneBackground } from './SceneView';
 
 interface ItemDef {
     key: string;          // 物品栏卡片资源 key
@@ -8,7 +9,7 @@ interface ItemDef {
     name: string;         // 卡片文字
     safe: boolean;        // 安全物品：吸附摆放；否则弹回并提示
     hint?: string;        // 不安全物品的说明
-    slot?: Vec2;          // 吸附点（根节点坐标，估算值，按预览微调）
+    slot?: Vec2;          // 吸附点（取景前的房间坐标，放置时按 FRAME_SLEEP_ROOM 换算）
     scale?: number;       // 房间内的显示大小
     z?: number;           // 叠放顺序
     vanish?: boolean;     // 放到床里：飞入后淡出销毁，不做重叠显示
@@ -91,7 +92,7 @@ export class SleepRoomView {
         catcher.on(Node.EventType.TOUCH_START, () => { /* 吞掉 */ });
         catcher.on(Node.EventType.TOUCH_END, () => { /* 吞掉 */ });
 
-        Img.sprite(this.root, 'bedroom', DW, 0, 0);
+        sceneBackground(this.root, 'bedroom', FRAME_SLEEP_ROOM, Col.pinkPale);
 
         this.placedLayer = new Node('placed');
         this.root.addChild(this.placedLayer);
@@ -251,7 +252,8 @@ export class SleepRoomView {
             this.axis = this.dragDef && Math.abs(dy) >= Math.abs(dx) ? 'drag' : 'swipe';
             if (this.axis === 'drag' && this.dragDef) {
                 const s = this.dragDef.scale ?? 1;
-                this.ghost = Img.sprite(this.dragLayer, this.dragDef.sceneKey ?? this.dragDef.key, 100 * s, p.x, p.y + 60);
+                const w = frameLength(FRAME_SLEEP_ROOM, 100 * s);
+                this.ghost = Img.sprite(this.dragLayer, this.dragDef.sceneKey ?? this.dragDef.key, w, p.x, p.y + 60);
                 opacity(this.ghost).opacity = 235;
             }
         }
@@ -297,7 +299,7 @@ export class SleepRoomView {
         const ghost = this.ghost!;
         this.ghost = null;
         if (def.safe && p.y > PANEL_TOP + 20) {
-            const slot = def.slot!;
+            const slot = this.sceneSlot(def);
             this.placed.add(def.key);
             if (def.vanish) {
                 tween(ghost).to(0.18, { position: new Vec3(slot.x, slot.y, 0) }).start();
@@ -321,6 +323,12 @@ export class SleepRoomView {
         }
     }
 
+    /** 吸附点按背景取景换算，保持物品与房间切图对齐 */
+    private sceneSlot(def: ItemDef): Vec2 {
+        const slot = def.slot!;
+        return framePoint(FRAME_SLEEP_ROOM, slot.x, slot.y);
+    }
+
     /** 调试：直接放置一个安全物品（跳过拖拽动画） */
     debugPlace(key: string): void {
         const def = ITEMS.find((d) => d.key === key);
@@ -328,8 +336,9 @@ export class SleepRoomView {
         this.placed.add(key);
         if (!def.vanish) {
             const s = def.scale ?? 1;
-            const slot = def.slot!;
-            const node = Img.sprite(this.placedLayer, def.sceneKey ?? key, 100 * s, slot.x, slot.y);
+            const slot = this.sceneSlot(def);
+            const w = frameLength(FRAME_SLEEP_ROOM, 100 * s);
+            const node = Img.sprite(this.placedLayer, def.sceneKey ?? key, w, slot.x, slot.y);
             this.placedNodes.set(key, node);
             this.restack();
         }
@@ -450,7 +459,8 @@ export class SleepRoomView {
     private showBang(): void {
         const n = new Node('bang');
         this.root.addChild(n);
-        ui(n, 56, 56, -272, 62);
+        const p = framePoint(FRAME_SLEEP_ROOM, -272, 62);
+        ui(n, 56, 56, p.x, p.y);
         const g = n.addComponent(Graphics);
         g.fillColor = new Color(245, 130, 40);
         g.circle(0, 0, 28);
