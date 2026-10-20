@@ -45,7 +45,9 @@ env:
 
 jobs:
   build-web-mobile:
-    name: web-mobile (${{ github.ref_name }})
+    # 固定检查名，便于 main 分支保护把该 workflow 设为必过检查；
+    # 不要再用 ${{ github.ref_name }}，PR 上会变成 "web-mobile (123/merge)"。
+    name: web-mobile
     runs-on: windows-2022
     timeout-minutes: 90
 
