@@ -133,7 +133,8 @@ jobs:
             Remove-Item $dist -Recurse -Force
           }
 
-          $buildArgs = "platform=web-mobile;buildPath=${env:GITHUB_WORKSPACE};outputName=dist;md5Cache=true"
+          $detailLog = Join-Path $env:RUNNER_TEMP 'cocos-build-detail.log'
+          $buildArgs = "platform=web-mobile;buildPath=${env:GITHUB_WORKSPACE};outputName=dist;md5Cache=true;logDest=$detailLog"
           $stdout = Join-Path $env:RUNNER_TEMP 'cocos-build.log'
           $stderr = Join-Path $env:RUNNER_TEMP 'cocos-build.err.log'
 
@@ -141,17 +142,51 @@ jobs:
           Write-Host "Project:    $env:GITHUB_WORKSPACE"
           Write-Host "Build args: $buildArgs"
 
-          # CocosCreator.exe 是 GUI 子系统程序，直接用 & 调用不会等待；用 Start-Process -Wait 拿退出码。
+          # CocosCreator.exe 是 GUI 子系统程序，直接用 & 调用不会等待；用 Start-Process 拿进程句柄。
+          # 不加 -Wait：它会一直等到进程（及其子进程）退出，Cocos 偶发不退出时会无限挂起。
           $proc = Start-Process -FilePath $editor `
             -ArgumentList @('--project', $env:GITHUB_WORKSPACE, '--build', $buildArgs) `
             -WorkingDirectory $env:COCOS_HOME `
-            -NoNewWindow -Wait -PassThru `
+            -NoNewWindow -PassThru `
             -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+
+          # 实时 tail Cocos 详细日志，并用 watchdog 兜底，避免一直挂到 90 分钟 job timeout。
+          $timeoutSec = 20 * 60
+          $watch = [Diagnostics.Stopwatch]::StartNew()
+          $lastLine = ''
+          while (-not $proc.HasExited -and $watch.Elapsed.TotalSeconds -lt $timeoutSec) {
+            Start-Sleep -Seconds 5
+            if (Test-Path $detailLog) {
+              $line = Get-Content $detailLog -Tail 1 -ErrorAction SilentlyContinue
+              if ($line -and $line -ne $lastLine) {
+                Write-Host "[cocos] $line"
+                $lastLine = $line
+              }
+            }
+          }
+
+          if (-not $proc.HasExited) {
+            Write-Host "Cocos Creator 构建超时（${timeoutSec}s），正在结束进程..."
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            Get-Process -Name CocosCreator -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 3
+            Write-Host '---------------- Cocos Creator detail log (tail) ----------------'
+            if (Test-Path $detailLog) { Get-Content $detailLog -Tail 400 }
+            Write-Host '---------------- Cocos Creator stdout (tail) ----------------'
+            if (Test-Path $stdout) { Get-Content $stdout -Tail 400 }
+            Write-Host '---------------- Cocos Creator stderr (tail) ----------------'
+            if (Test-Path $stderr) { Get-Content $stderr -Tail 200 }
+            throw "Cocos Creator 构建超时（${timeoutSec}s）"
+          }
+
+          $proc.WaitForExit()
 
           Write-Host '---------------- Cocos Creator stdout ----------------'
           if (Test-Path $stdout) { Get-Content $stdout -Tail 400 }
           Write-Host '---------------- Cocos Creator stderr ----------------'
           if (Test-Path $stderr) { Get-Content $stderr -Tail 200 }
+          Write-Host '---------------- Cocos Creator detail log (tail) ----------------'
+          if (Test-Path $detailLog) { Get-Content $detailLog -Tail 400 }
 
           Write-Host "Cocos Creator exit code: $($proc.ExitCode)"
 
@@ -165,6 +200,18 @@ jobs:
           }
 
           Write-Host "Build output: $dist"
+
+      - name: Upload Cocos build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cocos-build-logs
+          path: |
+            ${{ runner.temp }}/cocos-build.log
+            ${{ runner.temp }}/cocos-build.err.log
+            ${{ runner.temp }}/cocos-build-detail.log
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload web-mobile artifact
         uses: actions/upload-artifact@v4
