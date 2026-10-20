@@ -38,5 +38,9 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           # Read-only token for `gh` to inspect builds and pull requests.
           GH_TOKEN: ${{ github.token }}
+          # CI 没有交互端，任何 permission=ask 都会一直等到 job timeout。
+          # 权限全部放开；question 单独 deny，因为 CI 里没人回答问题，提问同样会卡住。
+          # 仅对 CI 生效，本地配置不受影响。
+          OPENCODE_CONFIG_CONTENT: '{"permission":{"*":"allow","question":"deny"}}'
         with:
           model: deepseek/deepseek-flash
