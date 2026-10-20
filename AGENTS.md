@@ -7,3 +7,11 @@
 - Do not modify `wrangler.jsonc`, `.github/workflows/build-web-mobile.yml`, or `.github/workflows/cleanup-cloudflare-preview.yml` unless the task explicitly asks.
 - Keep changes focused and do not reformat unrelated files.
 - When a change affects the game client, explain what should be verified in the web-mobile build.
+
+## CI feedback loop
+
+- `GH_TOKEN` is a read-only token for `gh`; use it to inspect pull requests, checks, and Actions logs. Do not use it to write.
+- The workflow commits, pushes, and opens or updates the pull request after your response. Do not wait for a build of changes made in the current run; the build starts after the run.
+- When the user asks you to inspect a previous build, find it with `gh run list --workflow build-web-mobile.yml --branch <branch>` or `gh pr checks <pr>`, then inspect failures with `gh run view <run-id> --log-failed`.
+- The build workflow comments the Cloudflare preview URL on the pull request after a successful deploy. Report it when relevant.
+- Do not run `git commit` or `git push` yourself; the workflow commits and pushes your file changes after the run.

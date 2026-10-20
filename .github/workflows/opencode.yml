@@ -7,8 +7,12 @@ on:
     types: [created]
 
 permissions:
+  actions: read
+  checks: read
   contents: read
   id-token: write
+  issues: read
+  pull-requests: read
 
 jobs:
   opencode:
@@ -32,5 +36,7 @@ jobs:
         uses: anomalyco/opencode/github@latest
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # Read-only token for `gh` to inspect builds and pull requests.
+          GH_TOKEN: ${{ github.token }}
         with:
           model: deepseek/deepseek-flash
