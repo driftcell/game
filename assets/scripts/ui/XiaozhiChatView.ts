@@ -208,12 +208,10 @@ export class XiaozhiChatView {
         this.card.addChild(this.listView);
         ui(this.listView, LIST_W, LIST_H, 0, LIST_Y);
 
+        // 矩形遮罩直接跟随 listView 尺寸自动绘制；不要再额外加一个 Graphics，
+        // 否则 Mask 自己的 Graphics 没有路径，消息会滚出聊天框而无法被裁剪。
         const mask = this.listView.addComponent(Mask);
-        mask.type = Mask.Type.GRAPHICS_STENCIL;
-        const mg = this.listView.addComponent(Graphics);
-        mg.fillColor = Col.white;
-        mg.rect(-LIST_W / 2, -LIST_H / 2, LIST_W, LIST_H);
-        mg.fill();
+        mask.type = Mask.Type.GRAPHICS_RECT;
 
         this.listContent = new Node('content');
         this.listView.addChild(this.listContent);
