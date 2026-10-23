@@ -347,6 +347,13 @@ export class XiaozhiChatView {
         b.h = h;
         b.x = b.role === 'user' ? USER_RIGHT - w / 2 : AI_LEFT + w / 2;
 
+        // 气泡高度是动态的，布局项必须同步，否则流式长回复会和上一条重叠
+        const item = this.items.find((it) => it.node === b.node);
+        if (item) {
+            item.h = h;
+            item.x = b.x;
+        }
+
         const nt = b.node.getComponent(UITransform)!;
         nt.setContentSize(w, h);
 
