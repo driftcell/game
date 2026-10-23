@@ -22,6 +22,7 @@ import { ShoppingListView } from './ui/ShoppingListView';
 import { SleepRoomView } from './ui/SleepRoomView';
 import { TaskBar } from './ui/TaskBar';
 import { ThoughtView } from './ui/ThoughtView';
+import { XiaozhiChatView } from './ui/XiaozhiChatView';
 
 const { ccclass } = _decorator;
 
@@ -72,6 +73,8 @@ export class GameApp extends Component {
         saveMenu.popup = popup;
         const thought = new ThoughtView(root);
         const overlay = new Overlay(root);
+        // 入口在 HUD 层，聊天窗口在最顶层；剧情开始后显示入口
+        const chat = new XiaozhiChatView(hud.root, root);
 
         const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay, bagPack, prefs };
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
@@ -80,6 +83,7 @@ export class GameApp extends Component {
         (window as unknown as Record<string, unknown>).__bagPack = bagPack;
         (window as unknown as Record<string, unknown>).__prefs = prefs;
         (window as unknown as Record<string, unknown>).__save = SaveManager;
+        (window as unknown as Record<string, unknown>).__chat = chat;
 
         // 任务卡点击：三个任务均为拖拽小游戏；睡眠区完成后接知识卡（收进手机）
         taskbar.onTask = async (id) => {
@@ -95,13 +99,14 @@ export class GameApp extends Component {
             taskbar.markDone(id);
         };
 
-        this.runStory(ctx, saveMenu);
+        this.runStory(ctx, saveMenu, chat);
     }
 
-    private async runStory(ctx: Ctx, saveMenu: SaveMenuView): Promise<void> {
+    private async runStory(ctx: Ctx, saveMenu: SaveMenuView, chat: XiaozhiChatView): Promise<void> {
         try {
             await ctx.overlay.titleScreen();
             const from = await this.bootMenu(saveMenu);
+            chat.setEntryVisible(true);
             let i = SEGMENTS.findIndex((s) => s.id === from);
             if (i < 0) i = 0;
             for (; i < SEGMENTS.length; i++) {

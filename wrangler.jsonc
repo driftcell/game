@@ -2,6 +2,9 @@
   // Cloudflare Worker 名称；首次 `wrangler deploy` 时自动创建。
   "name": "game",
 
+  // Worker 入口：AI 小智接口没有 CORS，通过 /api/xiaozhi 同源转发。
+  "main": "worker/index.ts",
+
   // 固定运行时兼容日期，避免 Cloudflare 默认值变化影响构建。
   "compatibility_date": "2026-10-20",
 
@@ -14,7 +17,9 @@
 
   // Cocos Creator 的 web-mobile 构建产物目录。
   // CI 先在 Windows 上构建出 dist/，再由 wrangler 将整个目录作为静态资源上传。
+  // binding 让 Worker 里可以通过 env.ASSETS 回退到静态文件。
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    "binding": "ASSETS"
   }
 }
