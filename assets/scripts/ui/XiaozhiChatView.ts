@@ -264,6 +264,10 @@ export class XiaozhiChatView {
             if (stale && stale !== tl.node && stale !== pl.node) stale.destroy();
         }
         eb.node.on(EditBox.EventType.EDITING_RETURN, () => { void this.submit(); });
+        // 聚焦时 Cocos 会隐藏自己的占位 Label，把占位文字补到 DOM input 上
+        eb.node.on(EditBox.EventType.EDITING_DID_BEGAN, () => {
+            setTimeout(() => this.fitInputDom(), 0);
+        });
         this.edit = eb;
 
         // 发送 / 停止
@@ -443,7 +447,7 @@ export class XiaozhiChatView {
             const w = Math.min(LIST_W - 40, Math.max(190, tw + 48));
             const y = totalH / 2 - 28 - i * 68;
             const x = -LIST_W / 2 + 20 + w / 2;
-            const pill = block(node, w, 56, Col.white, 28, x, y, Col.pink, 2);
+            const pill = block(node, w, 56, Col.pinkSoft, 28, x, y, Col.pink, 2);
             const l = label(pill, text, { size: 24, color: Col.pinkDeep });
             l.node.getComponent(UITransform)!.setAnchorPoint(0, 0.5);
             l.node.setPosition(-w / 2 + 24, 0);
@@ -683,11 +687,12 @@ export class XiaozhiChatView {
         this.scrollToBottom();
     }
 
-    /** Cocos 单行 EditBox 的 DOM 输入框默认贴顶，聊天框高度 80，居中一下 */
+    /** Cocos 单行 EditBox 的 DOM 输入框默认贴顶；聚焦时补上圆角框高度和占位文字 */
     private fitInputDom(): void {
         if (typeof document === 'undefined') return;
-        document.querySelectorAll('input.cocosEditBox, textarea.cocosEditBox').forEach((el) => {
-            (el as HTMLElement).style.lineHeight = '80px';
-        });
+        const el = document.activeElement as (HTMLInputElement | HTMLTextAreaElement | null);
+        if (!el || !el.classList || !el.classList.contains('cocosEditBox')) return;
+        el.style.lineHeight = '80px';
+        if (!el.placeholder) el.placeholder = '问问小智…';
     }
 }
