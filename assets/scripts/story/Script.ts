@@ -1,12 +1,15 @@
 import { Color } from 'cc';
 import { GameState, SupporterType } from '../core/GameState';
 import type { CardRow } from '../ui/KnowledgeCardView';
+import type { HouseAreaId } from '../ui/HouseView';
 import { Ctx, Step } from './Runner';
 
 /** 剧本段落：存档断点的最小单位。每段开头必须自带 scene/badge 步骤，保证读档重跑能重建画面 */
 export interface Segment {
     id: string;
     label: string;   // 存档槽位展示名
+    /** 进入此段落即永久点亮的空间；由存档断点累计推导，兼容旧存档。 */
+    unlocks?: HouseAreaId[];
     steps: () => Step[];
 }
 
@@ -84,6 +87,17 @@ function ch1IntroSteps(): Step[] {
         { k: 'scene', s: 'living-day' },
         { k: 'ui', run: async (ctx) => { await ctx.overlay.chapterCover('第一章｜宝宝的小窝', '孕38周+2天'); } },
         { k: 'badge', text: '孕38周+2天' },
+        {
+            k: 'ui', run: async (ctx) => {
+                ctx.dialog.hide();
+                ctx.portraits.hide();
+                await ctx.house.play({
+                    title: '第一章 · 宝宝的小窝',
+                    prompt: '先看看整个家。彩色空间已经开放，灰色空间会随着故事点亮；现在点客厅继续。',
+                    target: 'living',
+                });
+            },
+        },
 
         { k: 'dialog', who: 'mom', text: '{baby}随时都要来了，可家里还有好多东西没有整理。' },
         { k: 'dialog', who: 'mom', text: '……那个角落到现在还是空的。' },
@@ -128,11 +142,17 @@ function ch1TaskSteps(): Step[] {
         { k: 'scene', s: 'living-day' },
         { k: 'badge', text: '孕38周+2天' },
 
-        // 三个可点击任务（睡眠区为拖拽布置小游戏；尿布台本期跳过，点击直接完成；购物清单为分类拖拽小游戏）
+        // 先从全屋进入主卧，再完成三个可点击任务。
         {
             k: 'ui', run: async (ctx) => {
                 ctx.dialog.hide();
                 ctx.portraits.hide();
+                await ctx.house.play({
+                    title: '第一章 · 布置小窝',
+                    prompt: '今天的三件小事都在主卧和宝宝用品清单里。其他房间可以先看看，点主卧继续。',
+                    target: 'bedroom',
+                });
+                ctx.scene.set('bedroom-day');
                 ctx.taskbar.show([
                     { id: 'sleep', icon: 'task_sleep', label: '布置睡眠区' },
                     { id: 'diaper', icon: 'task_diaper', label: '布置尿布台' },
@@ -209,9 +229,30 @@ function ch1EndSteps(): Step[] {
             },
         },
 
-        // 安静的收尾：让卧室夜景停一瞬，然后翻开第二章
+        // 安静的收尾：让卧室夜景停一瞬，再回到全屋看看新空间。
         { k: 'ui', run: async () => { await new Promise((r) => setTimeout(r, 1200)); } },
+    ];
+}
 
+/** 第一章结束：在完整户型上点亮阳台，而不是只用文字告诉玩家“已解锁”。 */
+function ch1BalconySteps(): Step[] {
+    return [
+        { k: 'scene', s: 'bedroom-night' },
+        { k: 'ui', run: async (ctx) => { ctx.scene.nightGlow(40, 95); } },
+        { k: 'badge', text: '孕38周+2天' },
+        { k: 'dialog', who: 'supporter', text: '……对了。阳台我也收拾了，种了一盆薄荷。' },
+        {
+            k: 'ui', run: async (ctx) => {
+                ctx.dialog.hide();
+                ctx.portraits.hide();
+                await ctx.house.play({
+                    title: '第一章 · 新空间',
+                    prompt: '阳台小花园已经从灰色剪影变成彩色。点阳台收下这个新空间，之后这里可以慢慢布置。',
+                    target: 'balcony',
+                    reveal: 'balcony',
+                });
+            },
+        },
         { k: 'ui', run: async (ctx) => { await ctx.phone.chapterCard('第二章｜为生产做准备', '孕39周+1天'); } },
     ];
 }
@@ -227,6 +268,17 @@ function ch2BagSteps(): Step[] {
         } },
         { k: 'scene', s: 'bedroom-setup' },
         { k: 'badge', text: '孕39周+1天' },
+        {
+            k: 'ui', run: async (ctx) => {
+                ctx.dialog.hide();
+                ctx.portraits.hide();
+                await ctx.house.play({
+                    title: '第二章 · 为生产做准备',
+                    prompt: '阳台已经点亮，书房仍在等待后面的故事。今天先回主卧收拾待产包。',
+                    target: 'bedroom',
+                });
+            },
+        },
 
         { k: 'dialog', who: 'mom', text: '这几天可能随时会发动了，我们来收拾待产包吧。' },
 
@@ -333,6 +385,11 @@ function ch2EndSteps(): Step[] {
         { k: 'ui', run: async (ctx) => {
             ctx.dialog.hide();
             ctx.portraits.hide();
+            await ctx.house.play({
+                title: '第二章 · 家的变化',
+                prompt: '回顾现在已经点亮的家。可以点房间放大查看，书房会在第四章结束后变成婴儿房。',
+                doneLabel: '看完啦',
+            });
             await ctx.overlay.showEnd('第二章｜为生产做准备', '下一段：第一次肚子发紧', '内容制作中，敬请期待');
         } },
     ];
@@ -342,11 +399,25 @@ function ch2EndSteps(): Step[] {
 
 export const SEGMENTS: Segment[] = [
     { id: 'opening', label: '序幕', steps: openingSteps },
-    { id: 'ch1-intro', label: '第一章｜宝宝的小窝', steps: ch1IntroSteps },
+    {
+        id: 'ch1-intro', label: '第一章｜宝宝的小窝', steps: ch1IntroSteps,
+        unlocks: ['living', 'bedroom', 'kitchen', 'bathroom', 'entry'],
+    },
     { id: 'ch1-tasks', label: '第一章｜布置小窝', steps: ch1TaskSteps },
     { id: 'ch1-night', label: '第一章｜夜晚', steps: ch1NightSteps },
     { id: 'ch1-end', label: '第一章｜尾声', steps: ch1EndSteps },
+    { id: 'ch1-balcony', label: '第一章｜阳台小花园', steps: ch1BalconySteps, unlocks: ['balcony'] },
     { id: 'ch2-bag', label: '第二章｜收拾待产包', steps: ch2BagSteps },
     { id: 'ch2-prefs', label: '第二章｜生产偏好', steps: ch2PrefsSteps },
     { id: 'ch2-end', label: '第二章｜尾声', steps: ch2EndSteps },
 ];
+
+/** 每个槽位只保存 checkpoint；已开放区域取当前段落及之前所有 unlocks 的并集。 */
+export function unlockedAreasThrough(segmentId: string): HouseAreaId[] {
+    const unlocked = new Set<HouseAreaId>();
+    for (const seg of SEGMENTS) {
+        for (const area of seg.unlocks ?? []) unlocked.add(area);
+        if (seg.id === segmentId) return Array.from(unlocked);
+    }
+    return [];
+}

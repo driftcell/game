@@ -3,18 +3,18 @@ import { GameState } from '../core/GameState';
 import type { BagPackView } from '../ui/BagPackView';
 import type { ChoiceView } from '../ui/ChoiceView';
 import type { DialogView } from '../ui/DialogView';
+import type { HouseView } from '../ui/HouseView';
 import type { Hud } from '../ui/Hud';
 import type { PhoneView } from '../ui/PhoneView';
 import type { PopupView } from '../ui/PopupView';
 import type { Portraits } from '../ui/Portraits';
 import type { PrefsView } from '../ui/PrefsView';
-import type { SceneView } from '../ui/SceneView';
+import type { SceneKind, SceneView } from '../ui/SceneView';
 import type { TaskBar } from '../ui/TaskBar';
 import type { ThoughtView } from '../ui/ThoughtView';
 import type { Overlay } from '../ui/Overlay';
 
 export type Speaker = 'mom' | 'supporter' | 'xiaozhi';
-export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night' | 'bedroom-setup';
 
 export type Step =
     // text 可为函数：用于需要按运行时状态（如弹窗输入结果）决定台词的场景
@@ -33,6 +33,7 @@ export interface Ctx {
     thought: ThoughtView;
     popup: PopupView;
     scene: SceneView;
+    house: HouseView;
     taskbar: TaskBar;
     hud: Hud;
     phone: PhoneView;

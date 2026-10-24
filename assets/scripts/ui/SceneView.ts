@@ -2,7 +2,7 @@ import { Color, Graphics, Node, Vec2 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, Col, DH, layer, ui } from '../core/UITheme';
 
-export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-night' | 'bedroom-setup';
+export type SceneKind = 'pink' | 'living-day' | 'living-night' | 'bedroom-day' | 'bedroom-night' | 'bedroom-setup';
 
 /** 场景取景：在「按设计高度铺满」的基础上再做缩放与偏移，裁掉房间外墙和上下留白 */
 export interface SceneFrame {
@@ -14,6 +14,8 @@ export interface SceneFrame {
 const FRAME_PINK: SceneFrame = { zoom: 1, x: 0, y: 0 };
 /** 客厅屋顶在 11.9%、木地板前沿在 85% 左右，放大后上下留白和粉色外墙底座都出画 */
 const FRAME_LIVING: SceneFrame = { zoom: 1.38, x: 18, y: -36 };
+/** 从全屋进入主卧后的白天取景，与睡眠区小游戏使用同一张干净底图。 */
+const FRAME_BEDROOM_DAY: SceneFrame = { zoom: 1.18, x: 14, y: 56 };
 /** 卧室上方留白 8.3%/9.4%、木地板前沿在 79.4%，需比客厅更近才能同时裁掉屋顶和墙脚 */
 const FRAME_BEDROOM_NIGHT: SceneFrame = { zoom: 1.44, x: 30, y: -130 };
 const FRAME_BEDROOM_SETUP: SceneFrame = { zoom: 1.44, x: 30, y: -130 };
@@ -68,6 +70,11 @@ export class SceneView {
             const s = Img.size('bg_sparkle');
             const scale = DH / s.height;
             Img.sprite(this.host, 'bg_sparkle', s.width * scale, 0, 0);
+            return;
+        }
+        if (kind === 'bedroom-day') {
+            this.frame = FRAME_BEDROOM_DAY;
+            sceneBackground(this.host, 'bedroom', this.frame, Col.pinkPale);
             return;
         }
         if (kind === 'bedroom-night') {
