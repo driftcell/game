@@ -3,12 +3,13 @@ import { Img } from './core/Assets';
 import { GameState } from './core/GameState';
 import { SaveManager } from './core/SaveManager';
 import { DH, DW } from './core/UITheme';
-import { SEGMENTS, SLEEP_SAFETY_CARD } from './story/Script';
+import { SEGMENTS, SLEEP_SAFETY_CARD, unlockedAreasThrough } from './story/Script';
 import { Ctx, runSteps } from './story/Runner';
 import { BagPackView } from './ui/BagPackView';
 import { ChoiceView } from './ui/ChoiceView';
 import { DiaperStationView } from './ui/DiaperStationView';
 import { DialogView } from './ui/DialogView';
+import { HouseView } from './ui/HouseView';
 import { Hud } from './ui/Hud';
 import { KnowledgeCardView } from './ui/KnowledgeCardView';
 import { Overlay } from './ui/Overlay';
@@ -45,12 +46,14 @@ export class GameApp extends Component {
         rt.setContentSize(DW, DH);
         root.setPosition(0, 0);
 
-        // 自下而上：场景 < 立绘 < 对白 < 选项 < 任务卡 < 小游戏 < HUD < 手机 < 存档菜单 < 弹窗 < 气泡 < 过场
+        // 自下而上：场景 < 立绘 < 对白 < 选项 < 任务卡 < 全屋 < 小游戏 < HUD < 手机 < 存档菜单 < 弹窗 < 气泡 < 过场
         const scene = new SceneView(root);
         const portraits = new Portraits(root);
         const dialog = new DialogView(root, this);
         const choices = new ChoiceView(root);
         const taskbar = new TaskBar(root);
+        // 全屋是剧情节点中的导航层：完整显示户型，点当前区域后再进入原有场景/小游戏。
+        const house = new HouseView(root);
         // 睡眠区/购物清单/尿布台/待产包小游戏在任务卡之上、HUD 之下（保留孕周徽章）
         const sleepRoom = new SleepRoomView(root);
         const shoppingList = new ShoppingListView(root);
@@ -76,7 +79,8 @@ export class GameApp extends Component {
         // 入口在 HUD 层，聊天窗口在最顶层；剧情开始后显示入口
         const chat = new XiaozhiChatView(hud.root, root);
 
-        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, taskbar, hud, phone, overlay, bagPack, prefs };
+        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, house, taskbar, hud, phone, overlay, bagPack, prefs };
+        (window as unknown as Record<string, unknown>).__house = house;
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
         (window as unknown as Record<string, unknown>).__shoppingList = shoppingList;
         (window as unknown as Record<string, unknown>).__diaperStation = diaperStation;
@@ -111,6 +115,8 @@ export class GameApp extends Component {
             if (i < 0) i = 0;
             for (; i < SEGMENTS.length; i++) {
                 const seg = SEGMENTS[i];
+                // 区域进度从剧情断点累计推导：旧存档、不同槽位和新游戏都走同一套规则。
+                ctx.house.setUnlocked(unlockedAreasThrough(seg.id));
                 // 进入段落即存档：中途退出从段落开头重跑
                 SaveManager.currentCheckpoint = seg.id;
                 SaveManager.currentLabel = seg.label;

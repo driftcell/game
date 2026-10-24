@@ -8,6 +8,7 @@ const MANIFEST: Record<string, string> = {
     bg_sparkle: 'img/scene/bg_sparkle',
     bg_soft: 'img/scene/bg_soft',
     living_room: 'img/scene/living_room',
+    house_overview: 'img/scene/house_overview',
     mom: 'img/char/mom',
     dad: 'img/char/dad',
     xiaozhi: 'img/char/xiaozhi',
