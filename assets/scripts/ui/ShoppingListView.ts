@@ -37,7 +37,7 @@ const CARD_GAP = 16;
 const CARD_Y = 55;           // 面板局部坐标
 const LABEL_Y = -60;
 const DOTS_Y = -112;
-const ARROW_Y = -158;
+const ARROW_Y = 182;         // 翻页箭头放到物品栏标题栏，避免底部被裁切
 const HEADER_Y = 182;
 const PANEL_TOP = -400;      // 根坐标：面板上边缘
 const PANEL_H = 420;
@@ -97,7 +97,7 @@ export class ShoppingListView {
         block(this.root, DW, DH, Col.pinkPale);
         // 标题下移避开右上角孕周徽章
         label(this.root, '整理购物清单', { size: 40, bold: true, color: Col.ink }, 0, 618);
-        label(this.root, '把物品拖到合适的清单里', { size: 24, color: Col.gray }, 0, 568);
+        label(this.root, '把物品拖到合适的清单里', { size: 25, color: Col.gray }, 0, 568);
 
         // 三列目标区
         COLS.forEach((c, i) => {
@@ -147,7 +147,7 @@ export class ShoppingListView {
         this.refreshDots();
         this.chevron(-315, -1);
         this.chevron(315, 1);
-        label(this.panel, '左右滑动', { size: 20, color: new Color(150, 143, 148) }, 0, ARROW_Y - 24);
+        label(this.panel, '左右滑动', { size: 20, color: new Color(196, 188, 193) }, 0, -172);
 
         this.dragLayer = new Node('drag');
         this.root.addChild(this.dragLayer);
@@ -193,7 +193,7 @@ export class ShoppingListView {
         for (const def of items) {
             const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
             Img.icon(card, def.key, def.name, ICON_W, 0, 6);
-            label(this.cardLayer, def.name, { size: 22, color: new Color(242, 234, 238) }, x, LABEL_Y);
+            label(this.cardLayer, def.name, { size: 23, color: new Color(242, 234, 238) }, x, LABEL_Y);
             if (this.placed.has(def.key)) opacity(card).opacity = 100;
             this.cards.push({ def, x, node: card });
             x += CARD_W + CARD_GAP;

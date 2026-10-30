@@ -142,19 +142,19 @@ export class HouseView {
         this.bindPan();
 
         // 缩放控件始终在全屋层内，不依赖双指手感和浏览器滚轮。
-        button(this.root, '＋', () => this.changeZoom(0.25), { w: 72, h: 62, size: 34, radius: 18, x: 308, y: -116, color: Col.white, textColor: Col.pinkDeep });
-        button(this.root, '－', () => this.changeZoom(-0.25), { w: 72, h: 62, size: 34, radius: 18, x: 308, y: -190, color: Col.white, textColor: Col.pinkDeep });
-        button(this.root, '全屋', () => this.resetView(), { w: 104, h: 58, size: 23, radius: 18, x: 292, y: -268, color: Col.white, textColor: Col.pinkDeep });
+        button(this.root, '＋', () => this.changeZoom(0.25), { w: 80, h: 76, size: 34, radius: 20, x: 308, y: -94, color: Col.white, textColor: Col.pinkDeep });
+        button(this.root, '－', () => this.changeZoom(-0.25), { w: 80, h: 76, size: 34, radius: 20, x: 308, y: -172, color: Col.white, textColor: Col.pinkDeep });
+        button(this.root, '全屋', () => this.resetView(), { w: 112, h: 72, size: 24, radius: 20, x: 294, y: -250, color: Col.white, textColor: Col.pinkDeep });
 
-        const info = block(this.root, 650, 168, new Color(255, 255, 255, 242), 26, 0, -480, Col.line);
+        const info = block(this.root, 650, 168, new Color(255, 255, 255, 242), 26, 0, -380, Col.line);
         this.infoTitleL = labelInBox(info, '', 584, 46, { size: 28, bold: true, color: Col.pinkDeep, shrink: true }, 0, 43);
         this.infoBodyL = labelInBox(info, '', 580, 78, { size: 22, color: Col.ink, lineHeight: 31 }, 0, -30);
 
         this.actionLayer = new Node('action');
         this.root.addChild(this.actionLayer);
-        ui(this.actionLayer, DW, 130, 0, -630);
+        ui(this.actionLayer, DW, 130, 0, -530);
 
-        this.toastN = block(this.root, 610, 88, new Color(72, 60, 68, 238), 22, 0, -342);
+        this.toastN = block(this.root, 610, 88, new Color(72, 60, 68, 238), 22, 0, -240);
         this.toastL = labelInBox(this.toastN, '', 566, 72, { size: 22, color: Col.white, lineHeight: 29 });
         opacity(this.toastN).opacity = 0;
         this.root.active = false;
@@ -282,7 +282,7 @@ export class HouseView {
 
     private refreshProgress(): void {
         const count = AREAS.filter((a) => this.isOpen(a.id)).length;
-        this.progressL.string = `${count}/${AREAS.length} 个空间已点亮 · 已添置 ${GameState.owned.length} 件`;
+        this.progressL.string = `${count}/${AREAS.length} 个空间已点亮，已添置 ${GameState.owned.length} 件`;
         this.houseTypeL.string = this.isOpen('study') ? '户型③ 三室一厅 · 全屋总览'
             : this.isOpen('balcony') ? '户型② 两室一厅＋阳台 · 全屋总览'
                 : '户型① 两室一厅 · 全屋总览';

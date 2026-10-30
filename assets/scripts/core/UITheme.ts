@@ -11,7 +11,7 @@ export const Col = {
     pinkSoft: new Color(253, 236, 243), // 浅粉底
     pinkPale: new Color(252, 226, 237), // 更浅粉底（背景）
     ink: new Color(72, 60, 68),         // 正文深灰
-    gray: new Color(146, 134, 142),     // 次要文字
+    gray: new Color(118, 106, 114),      // 次要文字（对比度更稳）
     line: new Color(232, 214, 224),     // 描边线
     white: new Color(255, 255, 255),
     gold: new Color(246, 183, 60),      // 成就奖章

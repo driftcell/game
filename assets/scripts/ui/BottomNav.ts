@@ -1,5 +1,5 @@
 import { Color, Graphics, Label, Node, tween, UIOpacity, Vec3 } from 'cc';
-import { block, Col, DH, DW, label, layer, ui } from '../core/UITheme';
+import { block, Col, DH, label, layer, ui } from '../core/UITheme';
 
 export type NavTab = 'home' | 'shop' | 'me';
 
@@ -28,10 +28,10 @@ export class BottomNav {
     constructor(parent: Node) {
         this.root = layer(parent, 'bottom-nav');
         // 顶部两层极淡的阴影，让导航栏从内容上浮起来
-        block(this.root, DW, 10, new Color(72, 60, 68, 8), 0, 0, -DH / 2 + BAR_H + 10);
-        block(this.root, DW, 6, new Color(72, 60, 68, 12), 0, 0, -DH / 2 + BAR_H + 4);
-        block(this.root, DW, BAR_H, new Color(255, 255, 255, 250), 0, 0, BAR_Y);
-        block(this.root, DW, 2, Col.line, 0, 0, -DH / 2 + BAR_H);
+        block(this.root, 4000, 10, new Color(72, 60, 68, 8), 0, 0, -DH / 2 + BAR_H + 10);
+        block(this.root, 4000, 6, new Color(72, 60, 68, 12), 0, 0, -DH / 2 + BAR_H + 4);
+        block(this.root, 4000, BAR_H, new Color(255, 255, 255, 250), 0, 0, BAR_Y);
+        block(this.root, 4000, 2, Col.line, 0, 0, -DH / 2 + BAR_H);
 
         const defs: { id: NavTab; text: string }[] = [
             { id: 'home', text: '家' },
@@ -53,7 +53,7 @@ export class BottomNav {
             ui(iconN, 48, 48, 0, 17);
             const icon = iconN.addComponent(Graphics);
 
-            const text = label(tab, def.text, { size: 20, color: Col.gray }, 0, -33);
+            const text = label(tab, def.text, { size: 22, color: Col.gray }, 0, -33);
             this.tabs.set(def.id, { pill, icon, text });
         });
         this.paint();

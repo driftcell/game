@@ -144,14 +144,15 @@ export class DiaperStationView {
         pg.rect(-DW / 2, PANEL_H / 2 - 54, DW, 54);
         pg.fill();
         label(this.panel, '布置尿布台', { size: 31, bold: true, color: Col.white }, -80, 220);
-        labelInBox(this.panel, '先点物品，再点它该去的位置：台面 / 抽屉 / 收纳筐。', 620, 40,
-            { size: 18, color: new Color(196, 188, 193) }, 0, 178);
-        const close = block(this.panel, 96, 44, new Color(255, 255, 255, 36), 22, 303, 220);
-        label(close, '收起', { size: 19, color: Col.white });
-        close.on(Node.EventType.TOUCH_END, () => this.closeTray(true));
+        labelInBox(this.panel, '先点物品，再点位置：台面 / 抽屉 / 收纳筐。', 620, 42,
+            { size: 21, color: new Color(220, 212, 217) }, 0, 176);
+        const closeHit = block(this.panel, 150, 100, new Color(255, 255, 255, 1), 0, 303, 220);
+        const close = block(closeHit, 110, 54, new Color(255, 255, 255, 36), 24);
+        label(close, '收起', { size: 21, color: Col.white });
+        closeHit.on(Node.EventType.TOUCH_END, () => this.closeTray(true));
 
         ITEMS.forEach((def, i) => this.buildCard(def, i));
-        this.progressL = label(this.panel, '已归位：0 / 10', { size: 19, color: new Color(196, 188, 193) }, 0, -218);
+        this.progressL = label(this.panel, '已归位：0 / 10', { size: 21, color: new Color(220, 212, 217) }, 0, -218);
 
         this.hintN = block(this.root, 680, 84, new Color(35, 30, 35, 232), 20, 0, 24);
         this.hintL = labelInBox(this.hintN, '', 640, 76, { size: 23, color: Col.white, lineHeight: 32 });
@@ -170,7 +171,7 @@ export class DiaperStationView {
         const card = block(this.panel, CARD_W, CARD_H, new Color(253, 236, 243), 20, x, y);
         const g = card.getComponent(Graphics)!;
         Img.icon(card, def.img ?? def.key, def.name, 70, 0, 18);
-        label(card, def.name, { size: 19, color: Col.ink }, 0, -50);
+        label(card, def.name, { size: 21, color: Col.ink }, 0, -50);
         const check = Img.sprite(card, 'check_green', 28, 47, 54);
         check.active = false;
         card.on(Node.EventType.TOUCH_END, () => this.select(def.key));

@@ -13,6 +13,7 @@ import type { PrefsView } from '../ui/PrefsView';
 import type { SceneKind, SceneView } from '../ui/SceneView';
 import type { TaskBar } from '../ui/TaskBar';
 import type { ThoughtView } from '../ui/ThoughtView';
+import type { XiaozhiChatView } from '../ui/XiaozhiChatView';
 import type { Overlay } from '../ui/Overlay';
 
 export type Speaker = 'mom' | 'supporter' | 'xiaozhi';
@@ -42,6 +43,7 @@ export interface Ctx {
     bagPack: BagPackView;
     prefs: PrefsView;
     nav: BottomNav;
+    chat: XiaozhiChatView;
 }
 
 function speakerInfo(who: Speaker): { label: string; portrait: Speaker } {

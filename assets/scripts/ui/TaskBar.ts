@@ -50,7 +50,7 @@ export class TaskBar {
             const g = card.getComponent(Graphics)!;
             Img.sprite(card, t.icon, 120, 0, 42);
             label(card, t.label, { size: 25, color: Col.ink }, 0, -70);
-            const statusL = label(card, '', { size: 18, color: Col.gray }, 0, -108);
+            const statusL = label(card, '', { size: 21, color: Col.gray }, 0, -108);
             const radioN = new Node('radio');
             card.addChild(radioN);
             ui(radioN, 40, 40, cw / 2 - 30, ch / 2 - 30);
@@ -75,11 +75,11 @@ export class TaskBar {
         parent.addChild(n);
         ui(n, 40, 40, x, y);
         const g = n.addComponent(Graphics);
-        g.fillColor = new Color(176, 166, 172);
+        g.fillColor = new Color(150, 138, 146);
         g.roundRect(-12, -14, 24, 17, 5);
         g.fill();
         g.lineWidth = 4;
-        g.strokeColor = new Color(176, 166, 172);
+        g.strokeColor = new Color(150, 138, 146);
         g.arc(0, 3, 8, Math.PI, 0, false);
         g.stroke();
         return n;
@@ -128,23 +128,23 @@ export class TaskBar {
             const stroke = active ? Col.pink : Col.line;
             paintBlock(it.g, 210, 250, fill, 20, stroke, active ? 3 : 2);
             const op = it.card.getComponent(UIOpacity) || it.card.addComponent(UIOpacity);
-            op.opacity = locked ? 150 : it.done ? 205 : 255;
+            op.opacity = locked ? 220 : it.done ? 205 : 255;
             it.lockN.active = locked;
             it.radioN.active = !locked;
             if (it.done) {
                 it.statusL.string = '已完成';
                 it.statusL.color = Col.gray;
-                it.statusL.fontSize = 18;
+                it.statusL.fontSize = 20;
                 it.statusL.isBold = false;
             } else if (locked) {
                 it.statusL.string = '完成上一件后解锁';
-                it.statusL.color = Col.gray;
-                it.statusL.fontSize = 17;
+                it.statusL.color = new Color(96, 84, 92);
+                it.statusL.fontSize = 19;
                 it.statusL.isBold = false;
             } else {
                 it.statusL.string = this.sequential ? '现在做这件' : '点一下开始';
                 it.statusL.color = Col.pinkDeep;
-                it.statusL.fontSize = 19;
+                it.statusL.fontSize = 21;
                 it.statusL.isBold = true;
             }
         });

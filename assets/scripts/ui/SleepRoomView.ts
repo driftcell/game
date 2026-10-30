@@ -88,15 +88,18 @@ export class SleepRoomView {
 
         this.ringN = new Node('crib-ring');
         this.root.addChild(this.ringN);
-        ui(this.ringN, 280, 230, cribP.x, cribP.y + 4);
+        this.ringN.setSiblingIndex(this.cribLayer.getSiblingIndex());
+        ui(this.ringN, 300, 240, cribP.x, cribP.y + 4);
         const rg = this.ringN.addComponent(Graphics);
-        rg.lineWidth = 5;
-        rg.strokeColor = Col.pink;
-        rg.roundRect(-140, -115, 280, 230, 26);
-        rg.stroke();
+        rg.fillColor = new Color(238, 96, 148, 26);
+        rg.roundRect(-150, -120, 300, 240, 32);
+        rg.fill();
+        rg.fillColor = new Color(238, 96, 148, 16);
+        rg.roundRect(-128, -98, 256, 196, 28);
+        rg.fill();
         const rop = this.ringN.addComponent(UIOpacity);
-        rop.opacity = 150;
-        tween(rop).to(0.8, { opacity: 255 }).to(0.8, { opacity: 130 }).union().repeatForever().start();
+        rop.opacity = 110;
+        tween(rop).to(0.8, { opacity: 190 }).to(0.8, { opacity: 95 }).union().repeatForever().start();
 
         this.chipN = block(this.root, 190, 54, new Color(255, 255, 255, 246), 27, cribP.x + 46, cribP.y + 128, Col.pink);
         label(this.chipN, '＋ 点击布置', { size: 21, bold: true, color: Col.pinkDeep });
@@ -123,13 +126,14 @@ export class SleepRoomView {
         pg.fill();
         label(this.panel, '把东西放进婴儿床', { size: 31, bold: true, color: Col.white }, -60, 220);
         labelInBox(this.panel, '点物品就能放进去。睡觉不需要的东西，小智会拦下。', 620, 40,
-            { size: 18, color: new Color(196, 188, 193) }, 0, 178);
-        const close = block(this.panel, 96, 44, new Color(255, 255, 255, 36), 22, 303, 220);
-        label(close, '收起', { size: 19, color: Col.white });
-        close.on(Node.EventType.TOUCH_END, () => this.closeTray(true));
+            { size: 21, color: new Color(220, 212, 217) }, 0, 176);
+        const closeHit = block(this.panel, 150, 100, new Color(255, 255, 255, 1), 0, 303, 220);
+        const close = block(closeHit, 110, 54, new Color(255, 255, 255, 36), 24);
+        label(close, '收起', { size: 21, color: Col.white });
+        closeHit.on(Node.EventType.TOUCH_END, () => this.closeTray(true));
 
         ITEMS.forEach((def, i) => this.buildCard(def, i));
-        this.progressL = label(this.panel, '已放入：0 / 2', { size: 19, color: new Color(196, 188, 193) }, 0, -218);
+        this.progressL = label(this.panel, '已放入：0 / 2', { size: 21, color: new Color(220, 212, 217) }, 0, -218);
 
         this.hintN = block(this.root, 650, 84, new Color(35, 30, 35, 230), 20, 0, 24);
         this.hintL = labelInBox(this.hintN, '', 610, 76, { size: 23, color: Col.white, lineHeight: 32 });
@@ -148,7 +152,7 @@ export class SleepRoomView {
         const card = block(this.panel, CARD_W, CARD_H, new Color(253, 236, 243), 20, x, y);
         const g = card.getComponent(Graphics)!;
         Img.icon(card, def.key, def.name, 76, 0, 18);
-        label(card, def.name, { size: 20, color: Col.ink }, 0, -50);
+        label(card, def.name, { size: 21, color: Col.ink }, 0, -50);
         const check = Img.sprite(card, 'check_green', 30, 54, 54);
         check.active = false;
         card.on(Node.EventType.TOUCH_END, () => this.tryPlace(def.key));
@@ -189,7 +193,6 @@ export class SleepRoomView {
         Tween.stopAllByTarget(this.panel);
         this.panel.setPosition(0, PANEL_CY - PANEL_H - 40, 0);
         tween(this.panel).to(0.28, { position: new Vec3(0, PANEL_CY, 0) }, { easing: 'cubicOut' }).start();
-        this.toast('点一件物品，把它放进婴儿床里', 1600);
     }
 
     private closeTray(showTarget: boolean): void {

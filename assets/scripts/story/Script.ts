@@ -15,6 +15,22 @@ export interface Segment {
 
 /* ---------------------------------- 序幕 ---------------------------------- */
 
+/** 专注场景：收起 HUD / 手机 / 聊天入口，结束（含异常）后恢复 */
+async function focusMode(ctx: Ctx, run: () => Promise<void>): Promise<void> {
+    ctx.nav.setVisible(false);
+    ctx.phone.setVisible(false);
+    ctx.hud.time.hide();
+    ctx.chat.setEntryVisible(false);
+    try {
+        await run();
+    } finally {
+        ctx.nav.setVisible(true);
+        ctx.phone.setVisible(true);
+        ctx.hud.time.show();
+        ctx.chat.setEntryVisible(true);
+    }
+}
+
 function openingSteps(): Step[] {
     // 「自己输入名字」与「暂时叫宝宝」要有不同的回应，用局部标记跨步骤传递本次选择
     let babyNamed = false;
@@ -287,9 +303,7 @@ function ch2BagSteps(): Step[] {
         { k: 'ui', run: async (ctx) => {
             ctx.dialog.hide();
             ctx.portraits.hide();
-            ctx.nav.setVisible(false);
-            await ctx.bagPack.play();
-            ctx.nav.setVisible(true);
+            await focusMode(ctx, () => ctx.bagPack.play());
         } },
 
         { k: 'dialog', who: 'mom', text: '我总觉得还漏了什么。' },
@@ -339,9 +353,7 @@ function ch2PrefsSteps(): Step[] {
         { k: 'ui', run: async (ctx) => {
             ctx.dialog.hide();
             ctx.portraits.hide();
-            ctx.nav.setVisible(false);
-            await ctx.prefs.playForm();
-            ctx.nav.setVisible(true);
+            await focusMode(ctx, () => ctx.prefs.playForm());
         } },
 
         { k: 'dialog', who: 'xiaozhi', text: '生产偏好是沟通工具，不是必须逐项完成的考试。' },
@@ -374,9 +386,7 @@ function ch2PrefsSteps(): Step[] {
         { k: 'ui', run: async (ctx) => {
             ctx.dialog.hide();
             ctx.portraits.hide();
-            ctx.nav.setVisible(false);
-            await ctx.prefs.playStar();
-            ctx.nav.setVisible(true);
+            await focusMode(ctx, () => ctx.prefs.playStar());
         } },
         { k: 'dialog', who: 'mom', text: '……我想让他们知道，做什么之前先跟我说一声。' },
         { k: 'dialog', who: 'xiaozhi', text: '这一条我记下了。' },

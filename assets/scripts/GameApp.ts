@@ -110,7 +110,7 @@ export class GameApp extends Component {
         profile.onGoShop = () => this.openTab('shop');
         nav.onTab = (tab) => this.onNav(tab);
 
-        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, house, taskbar, hud, phone, overlay, bagPack, prefs, nav };
+        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, house, taskbar, hud, phone, overlay, bagPack, prefs, nav, chat };
         (window as unknown as Record<string, unknown>).__house = house;
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
         (window as unknown as Record<string, unknown>).__shoppingList = shoppingList;
@@ -130,6 +130,10 @@ export class GameApp extends Component {
             this.shop.close();
             this.profile.close();
             this.nav.hide();
+            // 小游戏是专注场景：收起 HUD、手机和聊天入口，安全检查卡出现时背景才干净
+            phone.setVisible(false);
+            chat.setEntryVisible(false);
+            hud.time.hide();
             try {
                 if (id === 'list') {
                     await shoppingList.play();
@@ -143,6 +147,9 @@ export class GameApp extends Component {
                 GameState.addStars(15);
                 taskbar.markDone(id);
             } finally {
+                phone.setVisible(true);
+                chat.setEntryVisible(true);
+                hud.time.show();
                 this.nav.show();
                 this.nav.flashStars(15);
                 this.refreshNav();

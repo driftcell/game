@@ -39,7 +39,7 @@ export function showSafetyCard(parent: Node, cfg: SafetyCardCfg): Promise<void> 
         Img.sprite(card, 'pin', 44, W / 2 - 28, H / 2 - 8);
 
         label(card, cfg.title, { size: 34, bold: true, color: Col.pinkDeep }, 0, H / 2 - 92);
-        labelInBox(card, cfg.subtitle, 500, 54, { size: 23, color: Col.gray, lineHeight: 31 }, 0, H / 2 - 144);
+        labelInBox(card, cfg.subtitle, 500, 54, { size: 24, color: Col.gray, lineHeight: 32 }, 0, H / 2 - 144);
 
         let y = H / 2 - 208;
         for (const row of cfg.rows) {
@@ -49,8 +49,8 @@ export function showSafetyCard(parent: Node, cfg: SafetyCardCfg): Promise<void> 
                 block(card, 38, 38, new Color(228, 224, 228), 10, -W / 2 + 58, y);
             }
             labelInBox(card, row.text, 430, 68, {
-                size: 25, color: row.done ? Col.ink : Col.gray,
-                hAlign: HorizontalTextAlignment.LEFT, lineHeight: 33,
+                size: 26, color: row.done ? Col.ink : Col.gray,
+                hAlign: HorizontalTextAlignment.LEFT, lineHeight: 34,
             }, -W / 2 + 310, y);
             y -= 76;
         }
@@ -60,12 +60,12 @@ export function showSafetyCard(parent: Node, cfg: SafetyCardCfg): Promise<void> 
             resolve();
         };
         button(card, cfg.buttonLabel ?? '完成检查', close, {
-            w: 400, h: 84, y: -H / 2 + 78, size: 30,
+            w: 420, h: 90, y: -H / 2 + 78, size: 31,
         });
 
         if (cfg.tip) {
             const tip = block(host, 570, 80, Col.white, 18, 0, cy - H / 2 - 66);
-            labelInBox(tip, cfg.tip, 534, 70, { size: 22, color: Col.pinkDeep, lineHeight: 30 });
+            labelInBox(tip, cfg.tip, 534, 70, { size: 23, color: Col.pinkDeep, lineHeight: 30 });
         }
     });
 }

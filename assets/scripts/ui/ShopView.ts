@@ -34,15 +34,16 @@ export class ShopView {
         block(this.root, 760, 760, new Color(247, 232, 214, 100), 380, 300, -620);
 
         label(this.root, '慢慢商店', { size: 40, bold: true, color: Col.ink }, -40, 740);
-        label(this.root, '把家一点点填满，不着急', { size: 22, color: Col.gray }, -40, 696);
+        label(this.root, '把家一点点填满，不着急', { size: 23, color: Col.gray }, -40, 696);
 
-        const back = block(this.root, 100, 52, Col.white, 26, -315, 740, Col.line);
-        label(back, '返回', { size: 21, color: Col.pinkDeep, bold: true });
-        back.on(Node.EventType.TOUCH_END, () => this.close());
+        const backHit = block(this.root, 160, 100, new Color(255, 255, 255, 1), 0, -305, 740);
+        const back = block(backHit, 120, 64, Col.white, 30, 0, 0, Col.line);
+        label(back, '返回', { size: 23, color: Col.pinkDeep, bold: true });
+        backHit.on(Node.EventType.TOUCH_END, () => this.close());
 
         this.starPill = block(this.root, 190, 56, Col.white, 28, 238, 740, Col.line);
         starNode(this.starPill, 28, Col.gold, -56, 1);
-        this.starL = label(this.starPill, '0', { size: 25, bold: true, color: Col.pinkDeep }, 18, 1);
+        this.starL = label(this.starPill, '0', { size: 26, bold: true, color: Col.pinkDeep }, 18, 1);
 
         this.drawAwning();
 
@@ -54,9 +55,9 @@ export class ShopView {
         this.root.addChild(this.gridLayer);
         ui(this.gridLayer, DW, DH);
 
-        label(this.root, '完成小游戏和成就会获得小星星 · 这里没有限时折扣', { size: 19, color: Col.gray }, 0, -500);
+        label(this.root, '完成小游戏和成就会获得小星星。这里没有限时折扣。', { size: 20, color: Col.gray }, 0, -520);
 
-        this.toastN = block(this.root, 620, 64, new Color(72, 60, 68, 232), 22, 0, -548);
+        this.toastN = block(this.root, 620, 64, new Color(72, 60, 68, 232), 22, 0, -590);
         this.toastL = label(this.toastN, '', { size: 23, color: Col.white });
         const toastOp = this.toastN.addComponent(UIOpacity);
         toastOp.opacity = 0;
@@ -114,10 +115,11 @@ export class ShopView {
         SHOP_CATEGORIES.forEach((c, i) => {
             const x = -264 + i * 176;
             const active = c.id === this.category;
-            const tab = block(this.tabLayer, 168, 62, active ? Col.pink : Col.white, 18, x, 0,
-                active ? Col.pink : Col.line, active ? 2 : 2);
-            label(tab, c.name, { size: 22, bold: active, color: active ? Col.white : Col.ink });
-            tab.on(Node.EventType.TOUCH_END, () => {
+            const hit = block(this.tabLayer, 180, 96, new Color(255, 255, 255, 1), 0, x, 0);
+            const tab = block(hit, 168, 66, active ? Col.pink : Col.white, 18, 0, 0,
+                active ? Col.pink : Col.line, 2);
+            label(tab, c.name, { size: 23, bold: active, color: active ? Col.white : Col.ink });
+            hit.on(Node.EventType.TOUCH_END, () => {
                 if (this.category === c.id) return;
                 this.category = c.id;
                 this.buildTabs();
@@ -137,7 +139,7 @@ export class ShopView {
             const col = i % 2;
             const lastOdd = items.length % 2 === 1 && i === items.length - 1;
             const x = lastOdd ? 0 : xs[col];
-            const y = 340 - row * (GRID_H + GRID_GAP);
+            const y = 320 - row * (GRID_H + GRID_GAP);
             this.buildCard(p, x, y);
         });
     }
@@ -156,11 +158,11 @@ export class ShopView {
             label(badge, '已拥有', { size: 17, bold: true, color: Col.white });
         }
         label(card, p.name, { size: 24, bold: true, color: Col.ink }, 0, -38);
-        label(card, p.tag, { size: 19, color: Col.gray }, 0, -74);
+        label(card, p.tag, { size: 21, color: Col.gray }, 0, -74);
         starNode(card, 24, owned ? new Color(200, 192, 198) : Col.gold, -120, -120);
-        label(card, String(p.price), { size: 24, bold: true, color: owned ? Col.gray : Col.pinkDeep }, -70, -120);
+        label(card, String(p.price), { size: 25, bold: true, color: owned ? Col.gray : Col.pinkDeep }, -70, -120);
         const buy = block(card, 118, 46, owned ? Col.pinkSoft : Col.pink, 16, 91, -120);
-        label(buy, owned ? '已拥有' : '带回家', { size: 19, bold: true, color: owned ? Col.gray : Col.white });
+        label(buy, owned ? '已拥有' : '选购', { size: 20, bold: true, color: owned ? Col.gray : Col.white });
         card.on(Node.EventType.TOUCH_END, () => { void this.openDetail(p); });
     }
 
@@ -209,9 +211,9 @@ export class ShopView {
         block(content, 500, 290, tint, 22, 0, 128);
         this.productArt(content, p, 186, 0, 138);
         const tag = block(content, 160, 42, new Color(122, 154, 126, 235), 21, 0, -40);
-        label(tag, p.tag, { size: 19, bold: true, color: Col.white });
-        labelInBox(content, p.desc, 500, 126, { size: 25, color: Col.ink, lineHeight: 37 }, 0, -120);
-        label(content, '买下后可以在「我的」里看到', { size: 19, color: Col.gray }, 0, -210);
+        label(tag, p.tag, { size: 20, bold: true, color: Col.white });
+        labelInBox(content, p.desc, 500, 126, { size: 26, color: Col.ink, lineHeight: 38 }, 0, -120);
+        label(content, '买下后可以在「我的」里看到', { size: 20, color: Col.gray }, 0, -210);
     }
 
     private refreshStars(): void {

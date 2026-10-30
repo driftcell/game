@@ -12,14 +12,14 @@ interface BagItem {
 /** 顺序按原型：前 8 件必要，后 6 件可选；物品栏 5/5/4 三页，第一页与设计稿一致
  *  （证件和保险信息/生产偏好文档/妈妈出院衣物/洗漱用品/充电器） */
 const ITEMS: BagItem[] = [
-    { key: 'bag_id', name: '证件和保险信息', req: true },
-    { key: 'bag_doc', name: '生产偏好文档', req: true },
-    { key: 'bag_mom', name: '妈妈出院衣物', req: true },
+    { key: 'bag_id', name: '证件资料', req: true },
+    { key: 'bag_doc', name: '偏好文档', req: true },
+    { key: 'bag_mom', name: '妈妈衣物', req: true },
     { key: 'bag_wash', name: '洗漱用品', req: true },
     { key: 'bag_charger', name: '充电器', req: true },
     { key: 'bag_seat', name: '婴儿座椅', req: true },
-    { key: 'bag_baby', name: '宝宝出院服', req: true },
-    { key: 'bag_sup', name: '支持者换洗衣物', req: true },
+    { key: 'bag_baby', name: '宝宝衣物', req: true },
+    { key: 'bag_sup', name: '支持者衣物', req: true },
     { key: 'bag_ball', name: '按摩球', req: false },
     { key: 'bag_snack', name: '小零食', req: false },
     { key: 'bag_yoga', name: '瑜伽球', req: false },
@@ -46,7 +46,7 @@ const CARD_GAP = 16;
 const CARD_Y = 55;           // 面板局部坐标
 const LABEL_Y = -60;
 const DOTS_Y = -112;
-const ARROW_Y = -158;
+const ARROW_Y = 182;
 const HEADER_Y = 182;
 const PANEL_TOP = -400;      // 根坐标：面板上边缘
 const PANEL_H = 420;
@@ -164,7 +164,7 @@ export class BagPackView {
         this.refreshDots();
         this.chevron(-315, -1);
         this.chevron(315, 1);
-        label(this.panel, '左右滑动', { size: 20, color: new Color(150, 143, 148) }, 0, ARROW_Y - 24);
+        label(this.panel, '左右滑动', { size: 20, color: new Color(196, 188, 193) }, 0, -172);
 
         // 底部提示
         this.hintN = block(this.root, 640, 88, new Color(35, 30, 35, 228), 20, 0, -340);
@@ -218,7 +218,7 @@ export class BagPackView {
             const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
             Img.sprite(card, def.key, ICON_W, 0, 6);
             // 最长名称「证件和保险信息」7 字，17 号字才能完整落在 126 宽的卡片内
-            label(this.cardLayer, def.name, { size: 17, color: new Color(242, 234, 238) }, x, LABEL_Y);
+            label(this.cardLayer, def.name, { size: 21, color: new Color(242, 234, 238) }, x, LABEL_Y);
             if (this.packed.has(def.key)) opacity(card).opacity = 100;
             this.cards.push({ def, x, node: card });
             x += CARD_W + CARD_GAP;
