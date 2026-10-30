@@ -11,7 +11,7 @@ export const Col = {
     pinkSoft: new Color(253, 236, 243), // 浅粉底
     pinkPale: new Color(252, 226, 237), // 更浅粉底（背景）
     ink: new Color(72, 60, 68),         // 正文深灰
-    gray: new Color(146, 134, 142),     // 次要文字
+    gray: new Color(118, 106, 114),      // 次要文字（对比度更稳）
     line: new Color(232, 214, 224),     // 描边线
     white: new Color(255, 255, 255),
     gold: new Color(246, 183, 60),      // 成就奖章
@@ -106,6 +106,27 @@ export function block(parent: Node, w: number, h: number, color: Color, radius =
     parent.addChild(n);
     ui(n, w, h, x, y);
     paintBlock(n.addComponent(Graphics), w, h, color, radius, stroke, lineWidth);
+    return n;
+}
+
+/** 五角星图标（小星星货币、商品价签共用） */
+export function starNode(parent: Node, size: number, color: Color, x = 0, y = 0): Node {
+    const n = new Node('star');
+    parent.addChild(n);
+    ui(n, size, size, x, y);
+    const g = n.addComponent(Graphics);
+    const r = size / 2;
+    const inner = r * 0.45;
+    for (let i = 0; i < 10; i++) {
+        const radius = i % 2 === 0 ? r : inner;
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const px = Math.cos(a) * radius;
+        const py = Math.sin(a) * radius;
+        if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+    }
+    g.close();
+    g.fillColor = color;
+    g.fill();
     return n;
 }
 

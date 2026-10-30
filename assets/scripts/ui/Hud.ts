@@ -34,6 +34,11 @@ export class TimeBadge {
     }
 
     hide(): void { this.root.active = false; }
+
+    /** 小游戏结束后恢复角标（不重播翻页动画） */
+    show(): void {
+        if (this.textL.string) this.root.active = true;
+    }
 }
 
 /** 屏幕顶部成就绶带：滑入 -> 停留 2s -> 滑出（绶带图已含文字） */

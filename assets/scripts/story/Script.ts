@@ -15,6 +15,22 @@ export interface Segment {
 
 /* ---------------------------------- 序幕 ---------------------------------- */
 
+/** 专注场景：收起 HUD / 手机 / 聊天入口，结束（含异常）后恢复 */
+async function focusMode(ctx: Ctx, run: () => Promise<void>): Promise<void> {
+    ctx.nav.setVisible(false);
+    ctx.phone.setVisible(false);
+    ctx.hud.time.hide();
+    ctx.chat.setEntryVisible(false);
+    try {
+        await run();
+    } finally {
+        ctx.nav.setVisible(true);
+        ctx.phone.setVisible(true);
+        ctx.hud.time.show();
+        ctx.chat.setEntryVisible(true);
+    }
+}
+
 function openingSteps(): Step[] {
     // 「自己输入名字」与「暂时叫宝宝」要有不同的回应，用局部标记跨步骤传递本次选择
     let babyNamed = false;
@@ -149,19 +165,20 @@ function ch1TaskSteps(): Step[] {
                 ctx.portraits.hide();
                 await ctx.house.play({
                     title: '第一章 · 布置小窝',
-                    prompt: '今天的三件小事都在主卧和宝宝用品清单里。其他房间可以先看看，点主卧继续。',
+                    prompt: '今天按顺序做三件小事：先整理购物清单，再布置睡眠区，最后布置尿布台。其他房间可以先看看。',
                     target: 'bedroom',
                 });
                 ctx.scene.set('bedroom-day');
                 ctx.taskbar.show([
+                    { id: 'list', icon: 'task_list', label: '查看购物清单' },
                     { id: 'sleep', icon: 'task_sleep', label: '布置睡眠区' },
                     { id: 'diaper', icon: 'task_diaper', label: '布置尿布台' },
-                    { id: 'list', icon: 'task_list', label: '查看购物清单' },
-                ]);
+                ], { sequential: true });
                 await ctx.taskbar.waitAllDone();
                 ctx.taskbar.hide();
             },
         },
+        { k: 'dialog', who: 'xiaozhi', text: '清单、睡眠区、尿布台都完成了。以后想给家里添点什么，可以去底部的「商店」看看。' },
     ];
 }
 
@@ -220,9 +237,9 @@ function ch1EndSteps(): Step[] {
                 ctx.portraits.hide();
                 await ctx.overlay.doneSheet(
                     [
+                        { icon: 'task_list', label: '查看购物清单' },
                         { icon: 'task_sleep', label: '布置睡眠区' },
                         { icon: 'task_diaper', label: '布置尿布台' },
-                        { icon: 'task_list', label: '查看购物清单' },
                     ],
                     '小智：「把『准备好了吗』换成『今天完成了什么』，会容易回答很多。」',
                 );
@@ -286,7 +303,7 @@ function ch2BagSteps(): Step[] {
         { k: 'ui', run: async (ctx) => {
             ctx.dialog.hide();
             ctx.portraits.hide();
-            await ctx.bagPack.play();
+            await focusMode(ctx, () => ctx.bagPack.play());
         } },
 
         { k: 'dialog', who: 'mom', text: '我总觉得还漏了什么。' },
@@ -336,7 +353,7 @@ function ch2PrefsSteps(): Step[] {
         { k: 'ui', run: async (ctx) => {
             ctx.dialog.hide();
             ctx.portraits.hide();
-            await ctx.prefs.playForm();
+            await focusMode(ctx, () => ctx.prefs.playForm());
         } },
 
         { k: 'dialog', who: 'xiaozhi', text: '生产偏好是沟通工具，不是必须逐项完成的考试。' },
@@ -369,7 +386,7 @@ function ch2PrefsSteps(): Step[] {
         { k: 'ui', run: async (ctx) => {
             ctx.dialog.hide();
             ctx.portraits.hide();
-            await ctx.prefs.playStar();
+            await focusMode(ctx, () => ctx.prefs.playStar());
         } },
         { k: 'dialog', who: 'mom', text: '……我想让他们知道，做什么之前先跟我说一声。' },
         { k: 'dialog', who: 'xiaozhi', text: '这一条我记下了。' },

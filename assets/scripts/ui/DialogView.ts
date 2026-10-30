@@ -27,7 +27,7 @@ export class DialogView {
     private fullText = '';
     private shown = 0;
     private tickFn: (() => void) | null = null;
-    private baseY = -DH / 2 + 30;
+    private baseY = -DH / 2 + 144;
     private lastTextH = -1;
 
     constructor(parent: Node, host: Component) {

@@ -1,18 +1,18 @@
-import { Color, EventTouch, Graphics, Label, Node, Tween, tween, UITransform, Vec3 } from 'cc';
+import { Color, EventTouch, Graphics, Node, Tween, tween, UITransform, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
 import { block, Col, DH, DW, label, labelInBox, layer, opacity, paintBlock, ui } from '../core/UITheme';
 import { FRAME_DIAPER_ROOM, frameLength, framePoint, sceneBackground, unframePoint } from './SceneView';
+import { showSafetyCard } from './SafetyCard';
 
 interface DiaperItem {
-    key: string;       // 唯一 id
-    img?: string;      // 资源 key，默认同 key
+    key: string;
+    img?: string;
     name: string;
     zone: number;      // 0 台面 / 1 抽屉 / 2 收纳筐
     size: number;      // 放进房间时的显示宽度（按真实物品相对大小设置）
     hint: string;      // 放错区时的温柔科普
 }
 
-/** 顺序按设计稿物品栏分页（5/5，两页）：第一页与设计稿一致（纸尿裤/湿巾/润肤乳/隔尿垫/干净衣物） */
 const ITEMS: DiaperItem[] = [
     { key: 'diaper', name: '纸尿裤', zone: 0, size: 34, hint: '纸尿裤每次都要用，放在伸手即取的台面上' },
     { key: 'wipes', name: '湿巾', zone: 0, size: 40, hint: '湿巾每次换尿布都要用，放在台面上' },
@@ -27,65 +27,56 @@ const ITEMS: DiaperItem[] = [
 ];
 
 const ZONE_COLORS = [Col.pink, new Color(240, 170, 90), Col.gray];
-/** 放置位（取景前坐标，按设计稿房间切图定位，使用时按 FRAME_DIAPER_ROOM 换算）：
- *  台面 = 尿布台台面 2x2；抽屉 = 台下两层搁板；收纳筐 = 台前地板上的筐 */
+const ZONE_NAMES = ['台面', '抽屉', '收纳筐'];
 const SLOTS: [number, number][][] = [
     [[24, 244], [64, 242], [12, 280], [52, 278]],
     [[38, 183], [44, 146], [82, 148]],
     [[158, -58], [212, -58], [158, -110], [212, -110]],
 ];
-/** 高亮框（根坐标） */
 const FRAMES = [
     { x: 40, y: 262, w: 200, h: 140 },
     { x: 58, y: 165, w: 160, h: 110 },
     { x: 185, y: -84, w: 190, h: 180 },
 ];
 
-const PAGE_SIZE = 5;
-const CARD_W = 126;
-/** 物品图标统一留出内边距，避免高/宽尺寸不同的切图顶到卡片边缘 */
-const ICON_W = 84;
-const CARD_GAP = 16;
-const CARD_Y = 55;           // 面板局部坐标
-const LABEL_Y = -60;
-const DOTS_Y = -112;
-const ARROW_Y = -158;
-const HEADER_Y = 182;
-const PANEL_TOP = -400;      // 根坐标：面板上边缘
-const PANEL_H = 420;
-const PANEL_CY = PANEL_TOP - PANEL_H / 2;
+const CARD_W = 130;
+const CARD_H = 150;
+const CARD_X = [-276, -138, 0, 138, 276];
+const CARD_Y = [58, -108];
+const PANEL_H = 520;
+const PANEL_CY = -DH / 2 + 260;
 
 /**
- * 第一章小游戏：布置尿布台。
- * 换尿布时大人一只手不离宝宝，所以台面只放伸手即取的必需品；
- * 备货收进抽屉，危险/分心物品收进筐。放错弹回并给出温柔科普。
+ * 第一章：布置尿布台。
+ * 点尿布台 → 打开物品栏 → 点物品，再点「台面 / 抽屉 / 收纳筐」。
+ * 放对会归位，放错会弹回并解释原因；全部归位后才弹出一次安全检查卡。
  */
 export class DiaperStationView {
     root: Node;
     private panel: Node;
-    private cardLayer: Node;
     private placedLayer: Node;
-    private dragLayer: Node;
+    private ghostLayer: Node;
+    private zoneLayer: Node;
+    private zoneCatcher: Node;
+    private modalLayer: Node;
     private hintN: Node;
-    private hintL: Label;
+    private hintL: ReturnType<typeof label>;
+    private targetN: Node;
+    private chipN: Node;
     private frames: Graphics[] = [];
-    private dots: Node[] = [];
-    private arrows: { x: number; dir: number }[] = [];
-    private cards: { def: DiaperItem; x: number; node: Node }[] = [];
+    private zoneTags: Node[] = [];
+    private progressL: ReturnType<typeof label>;
+    private cards = new Map<string, { def: DiaperItem; card: Node; check: Node; g: Graphics }>();
     private placed = new Set<string>();
     private zoneCounts = [0, 0, 0];
-    private page = 0;
-    private hoverZone = -1;
-    private ghost: Node | null = null;
-    private dragDef: DiaperItem | null = null;
-    private start = new Vec3();
-    private axis: 'none' | 'drag' | 'swipe' = 'none';
+    private selected: string | null = null;
     private busy = false;
+    private trayOpen = false;
+    private done = false;
     private resolve: (() => void) | null = null;
 
     constructor(parent: Node) {
         this.root = layer(parent, 'diaperstation');
-        // 全屏吞掉下层点击（任务卡、对白等）
         const catcher = new Node('catcher');
         this.root.addChild(catcher);
         const ct = catcher.addComponent(UITransform);
@@ -94,11 +85,10 @@ export class DiaperStationView {
         catcher.on(Node.EventType.TOUCH_END, () => { /* 吞掉 */ });
 
         sceneBackground(this.root, 'bedroom_diaper', FRAME_DIAPER_ROOM, Col.pinkPale);
-        // 收纳筐放在尿布台前的地板上（设计稿房间无筐，游戏按玩法补一只）
         const basket = framePoint(FRAME_DIAPER_ROOM, 185, -70);
         Img.sprite(this.root, 'basket', frameLength(FRAME_DIAPER_ROOM, 140), basket.x, basket.y);
 
-        // 三处高亮框（拖拽悬停时描边）
+        // 三处放置区的描边（选中物品后显示）
         FRAMES.forEach(() => {
             const n = new Node('frame');
             this.root.addChild(n);
@@ -110,71 +100,102 @@ export class DiaperStationView {
         this.root.addChild(this.placedLayer);
         ui(this.placedLayer, DW, DH);
 
-        // 提示浮在列底与物品栏之间，避免遮挡标题和放置区
-        this.hintN = block(this.root, 640, 88, new Color(35, 30, 35, 228), 20, 0, -340);
-        this.hintL = labelInBox(this.hintN, '', 600, 80, { size: 26, color: Col.white });
-        opacity(this.hintN).opacity = 0;
+        this.ghostLayer = new Node('ghost');
+        this.root.addChild(this.ghostLayer);
+        ui(this.ghostLayer, DW, DH);
+
+        // 点墙上的尿布台开始布置
+        const tableP = framePoint(FRAME_DIAPER_ROOM, 40, 262);
+        this.targetN = new Node('table-target');
+        this.root.addChild(this.targetN);
+        ui(this.targetN, 280, 230, tableP.x, tableP.y);
+        this.targetN.on(Node.EventType.TOUCH_END, () => this.openTray());
+        this.chipN = block(this.root, 190, 54, new Color(255, 255, 255, 246), 27, tableP.x + 76, tableP.y + 112, Col.pink);
+        label(this.chipN, '＋ 点击布置', { size: 21, bold: true, color: Col.pinkDeep });
+        this.chipN.on(Node.EventType.TOUCH_END, () => this.openTray());
+        tween(this.chipN).to(0.8, { scale: new Vec3(1.05, 1.05, 1) }).to(0.8, { scale: new Vec3(1, 1, 1) }).union().repeatForever().start();
+
+        // 选中物品后，房间变成「选位置」状态
+        this.zoneCatcher = new Node('zone-catcher');
+        this.root.addChild(this.zoneCatcher);
+        ui(this.zoneCatcher, 20000, 20000);
+        this.zoneCatcher.on(Node.EventType.TOUCH_END, (e) => this.onZoneTap(e));
+        this.zoneCatcher.active = false;
+
+        this.zoneLayer = new Node('zone-tags');
+        this.root.addChild(this.zoneLayer);
+        ui(this.zoneLayer, DW, DH);
+        FRAMES.forEach((f, i) => {
+            const p = framePoint(FRAME_DIAPER_ROOM, f.x, f.y);
+            const tag = block(this.zoneLayer, 120, 44, new Color(255, 255, 255, 244), 22, p.x, p.y, ZONE_COLORS[i], 2);
+            label(tag, ZONE_NAMES[i], { size: 21, bold: true, color: ZONE_COLORS[i] });
+            tag.active = false;
+            this.zoneTags.push(tag);
+        });
 
         this.panel = new Node('panel');
         this.root.addChild(this.panel);
-        ui(this.panel, DW, PANEL_H, 0, PANEL_CY);
+        ui(this.panel, DW, PANEL_H, 0, PANEL_CY - PANEL_H - 40);
         const pg = this.panel.addComponent(Graphics);
-        pg.fillColor = new Color(62, 58, 62, 242);
+        pg.fillColor = new Color(62, 58, 62, 246);
         pg.rect(-DW / 2, -PANEL_H / 2, DW, PANEL_H);
         pg.fill();
-        // 顶部横条 + 中央向下展开的梯形
         pg.fillColor = new Color(44, 41, 44, 255);
-        pg.rect(-DW / 2, PANEL_H / 2 - 56, DW, 56);
+        pg.rect(-DW / 2, PANEL_H / 2 - 54, DW, 54);
         pg.fill();
-        pg.moveTo(-150, PANEL_H / 2 - 56);
-        pg.lineTo(150, PANEL_H / 2 - 56);
-        pg.lineTo(260, PANEL_H / 2 - 112);
-        pg.lineTo(-260, PANEL_H / 2 - 112);
-        pg.close();
-        pg.fill();
-        label(this.panel, '物品栏', { size: 34, bold: true, color: Col.white }, 0, HEADER_Y);
+        label(this.panel, '布置尿布台', { size: 31, bold: true, color: Col.white }, -80, 220);
+        labelInBox(this.panel, '先点物品，再点位置：台面 / 抽屉 / 收纳筐。', 620, 42,
+            { size: 21, color: new Color(220, 212, 217) }, 0, 176);
+        const closeHit = block(this.panel, 150, 100, new Color(255, 255, 255, 1), 0, 303, 220);
+        const close = block(closeHit, 110, 54, new Color(255, 255, 255, 36), 24);
+        label(close, '收起', { size: 21, color: Col.white });
+        closeHit.on(Node.EventType.TOUCH_END, () => this.closeTray(true));
 
-        this.cardLayer = new Node('cards');
-        this.panel.addChild(this.cardLayer);
-        ui(this.cardLayer, DW, PANEL_H);
-        this.renderPage();
+        ITEMS.forEach((def, i) => this.buildCard(def, i));
+        this.progressL = label(this.panel, '已归位：0 / 10', { size: 21, color: new Color(220, 212, 217) }, 0, -218);
 
-        const pageCount = Math.ceil(ITEMS.length / PAGE_SIZE);
-        for (let i = 0; i < pageCount; i++) {
-            this.dots.push(block(this.panel, 18, 18, new Color(120, 112, 118), 9, (i - (pageCount - 1) / 2) * 34, DOTS_Y));
-        }
-        this.refreshDots();
-        this.chevron(-315, -1);
-        this.chevron(315, 1);
-        label(this.panel, '左右滑动', { size: 20, color: new Color(150, 143, 148) }, 0, ARROW_Y - 24);
+        this.hintN = block(this.root, 680, 84, new Color(35, 30, 35, 232), 20, 0, 24);
+        this.hintL = labelInBox(this.hintN, '', 640, 76, { size: 23, color: Col.white, lineHeight: 32 });
+        opacity(this.hintN).opacity = 0;
 
-        this.dragLayer = new Node('drag');
-        this.root.addChild(this.dragLayer);
-        ui(this.dragLayer, DW, DH);
-
-        this.panel.on(Node.EventType.TOUCH_START, this.onDown, this);
-        this.panel.on(Node.EventType.TOUCH_MOVE, this.onMove, this);
-        this.panel.on(Node.EventType.TOUCH_END, this.onUp, this);
-        this.panel.on(Node.EventType.TOUCH_CANCEL, this.onCancel, this);
+        this.modalLayer = new Node('modal');
+        this.root.addChild(this.modalLayer);
+        ui(this.modalLayer, DW, DH);
 
         this.root.active = false;
     }
 
-    /** 进入小游戏：重置并淡入，返回的 Promise 在布置完成后 resolve */
+    private buildCard(def: DiaperItem, i: number): void {
+        const x = CARD_X[i % 5];
+        const y = CARD_Y[Math.floor(i / 5)];
+        const card = block(this.panel, CARD_W, CARD_H, new Color(253, 236, 243), 20, x, y);
+        const g = card.getComponent(Graphics)!;
+        Img.icon(card, def.img ?? def.key, def.name, 70, 0, 18);
+        label(card, def.name, { size: 21, color: Col.ink }, 0, -50);
+        const check = Img.sprite(card, 'check_green', 28, 47, 54);
+        check.active = false;
+        card.on(Node.EventType.TOUCH_END, () => this.select(def.key));
+        this.cards.set(def.key, { def, card, check, g });
+    }
+
     play(): Promise<void> {
-        this.page = 0;
         this.placed.clear();
         this.zoneCounts = [0, 0, 0];
-        this.hoverZone = -1;
-        this.paintFrames();
-        this.placedLayer.removeAllChildren();
-        this.dragLayer.removeAllChildren();
-        this.ghost = null;
-        this.dragDef = null;
-        this.axis = 'none';
+        this.selected = null;
         this.busy = false;
-        this.renderPage();
-        this.refreshDots();
+        this.trayOpen = false;
+        this.done = false;
+        this.placedLayer.removeAllChildren();
+        this.ghostLayer.removeAllChildren();
+        this.modalLayer.removeAllChildren();
+        Tween.stopAllByTarget(this.panel);
+        this.panel.setPosition(0, PANEL_CY - PANEL_H - 40, 0);
+        this.panel.active = false;
+        this.targetN.active = true;
+        this.chipN.active = true;
+        this.hideZonePicker();
+        this.refreshCards();
+        this.updateProgress();
         opacity(this.hintN).opacity = 0;
         const op = opacity(this.root);
         op.opacity = 0;
@@ -183,178 +204,113 @@ export class DiaperStationView {
         return new Promise<void>((r) => { this.resolve = r; });
     }
 
-    private renderPage(): void {
-        this.cardLayer.removeAllChildren();
-        this.cards = [];
-        const items = ITEMS.slice(this.page * PAGE_SIZE, this.page * PAGE_SIZE + PAGE_SIZE);
-        const totalW = items.length * CARD_W + (items.length - 1) * CARD_GAP;
-        let x = -totalW / 2 + CARD_W / 2;
-        for (const def of items) {
-            const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
-            Img.icon(card, def.img ?? def.key, def.name, ICON_W, 0, 6);
-            label(this.cardLayer, def.name, { size: 22, color: new Color(242, 234, 238) }, x, LABEL_Y);
-            if (this.placed.has(def.key)) opacity(card).opacity = 100;
-            this.cards.push({ def, x, node: card });
-            x += CARD_W + CARD_GAP;
+    private openTray(): void {
+        if (this.trayOpen || this.busy || this.done) return;
+        this.trayOpen = true;
+        this.targetN.active = false;
+        this.chipN.active = false;
+        this.panel.active = true;
+        Tween.stopAllByTarget(this.panel);
+        this.panel.setPosition(0, PANEL_CY - PANEL_H - 40, 0);
+        tween(this.panel).to(0.28, { position: new Vec3(0, PANEL_CY, 0) }, { easing: 'cubicOut' }).start();
+        this.toast('先点一件物品，再点它该去的位置', 1700);
+    }
+
+    private closeTray(showTarget: boolean): void {
+        if (!this.trayOpen) return;
+        this.trayOpen = false;
+        this.clearSelection();
+        Tween.stopAllByTarget(this.panel);
+        tween(this.panel).to(0.24, { position: new Vec3(0, PANEL_CY - PANEL_H - 40, 0) }, { easing: 'cubicIn' })
+            .call(() => { this.panel.active = false; }).start();
+        if (showTarget && !this.done) {
+            this.targetN.active = true;
+            this.chipN.active = true;
         }
     }
 
-    private refreshDots(): void {
-        this.dots.forEach((d, i) => {
-            const g = d.getComponent(Graphics);
-            if (g) paintBlock(g, 18, 18, i === this.page ? Col.pink : new Color(120, 112, 118), 9);
-        });
+    private select(key: string): void {
+        if (this.busy || this.done || this.placed.has(key)) return;
+        if (this.selected === key) {
+            this.clearSelection();
+            return;
+        }
+        this.clearSelection();
+        this.selected = key;
+        const entry = this.cards.get(key)!;
+        paintBlock(entry.g, CARD_W, CARD_H, new Color(253, 236, 243), 20, Col.pink, 4);
+        entry.card.setScale(new Vec3(1.03, 1.03, 1));
+        this.zoneCatcher.active = true;
+        this.zoneTags.forEach((t) => { t.active = true; });
+        this.paintFrames(true);
+        this.toast(`${entry.def.name}：点台面、抽屉或收纳筐`, 2200);
     }
 
-    private chevron(x: number, dir: number): void {
-        const n = new Node('arrow');
-        this.panel.addChild(n);
-        ui(n, 80, 80, x, ARROW_Y);
-        const g = n.addComponent(Graphics);
-        g.lineWidth = 8;
-        g.strokeColor = new Color(202, 192, 198);
-        g.moveTo(12 * dir, 20);
-        g.lineTo(-12 * dir, 0);
-        g.lineTo(12 * dir, -20);
-        g.stroke();
-        this.arrows.push({ x, dir });
-    }
-
-    private turn(dir: number): void {
-        const max = Math.ceil(ITEMS.length / PAGE_SIZE) - 1;
-        const next = Math.min(Math.max(this.page + dir, 0), max);
-        if (next === this.page) return;
-        this.page = next;
-        this.renderPage();
-        this.refreshDots();
-    }
-
-    private paintFrames(): void {
-        this.frames.forEach((g, i) => {
-            g.clear();
-            if (i === this.hoverZone) {
-                const f = FRAMES[i];
-                const c = framePoint(FRAME_DIAPER_ROOM, f.x, f.y);
-                const w = frameLength(FRAME_DIAPER_ROOM, f.w);
-                const h = frameLength(FRAME_DIAPER_ROOM, f.h);
-                g.strokeColor = ZONE_COLORS[i];
-                g.lineWidth = 6;
-                g.roundRect(c.x - w / 2, c.y - h / 2, w, h, frameLength(FRAME_DIAPER_ROOM, 16));
-                g.stroke();
-            }
-        });
-    }
-
-    private setHover(zone: number): void {
-        if (zone === this.hoverZone) return;
-        this.hoverZone = zone;
-        this.paintFrames();
-    }
-
-    private hitZone(p: Vec3): number {
-        // 先反算回设计稿坐标，命中区仍按原房间切图坐标判断
-        const q = unframePoint(FRAME_DIAPER_ROOM, p.x, p.y);
-        if (Math.abs(q.x - 40) <= 115 && q.y >= 195 && q.y <= 345) return 0;
-        if (Math.abs(q.x - 58) <= 95 && q.y >= 105 && q.y <= 195) return 1;
-        if (Math.abs(q.x - 185) <= 110 && q.y >= -180 && q.y <= 10) return 2;
-        return -1;
-    }
-
-    private onDown(e: EventTouch): void {
-        if (this.busy) return;
-        const p = this.toLocal(e);
-        this.start.set(p.x, p.y, 0);
-        this.axis = 'none';
-        this.dragDef = null;
-        const lx = p.x - this.panel.position.x;
-        const ly = p.y - this.panel.position.y;
-        for (const c of this.cards) {
-            if (this.placed.has(c.def.key)) continue;
-            if (Math.abs(lx - c.x) <= CARD_W / 2 + 6 && Math.abs(ly - CARD_Y) <= CARD_W / 2 + 6) {
-                this.dragDef = c.def;
-                break;
+    private clearSelection(): void {
+        if (this.selected) {
+            const entry = this.cards.get(this.selected);
+            if (entry) {
+                paintBlock(entry.g, CARD_W, CARD_H, new Color(253, 236, 243), 20);
+                entry.card.setScale(new Vec3(1, 1, 1));
             }
         }
+        this.selected = null;
+        this.zoneCatcher.active = false;
+        this.zoneTags.forEach((t) => { t.active = false; });
+        this.paintFrames(false);
     }
 
-    private onMove(e: EventTouch): void {
-        if (this.busy) return;
-        const p = this.toLocal(e);
-        const dx = p.x - this.start.x;
-        const dy = p.y - this.start.y;
-        if (this.axis === 'none') {
-            if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;
-            this.axis = this.dragDef && Math.abs(dy) >= Math.abs(dx) ? 'drag' : 'swipe';
-            if (this.axis === 'drag' && this.dragDef) {
-                const size = frameLength(FRAME_DIAPER_ROOM, this.dragDef.size * 2);
-                this.ghost = Img.icon(this.dragLayer, this.dragDef.img ?? this.dragDef.key, this.dragDef.name, size, p.x, p.y + 60);
-                opacity(this.ghost).opacity = 235;
-            }
-        }
-        if (this.axis === 'drag' && this.ghost) {
-            this.ghost.setPosition(p.x, p.y + 60, 0);
-            this.setHover(this.hitZone(this.ghost.position));
-        }
+    private hideZonePicker(): void {
+        this.zoneCatcher.active = false;
+        this.zoneTags.forEach((t) => { t.active = false; });
+        this.paintFrames(false);
     }
 
-    private onUp(e: EventTouch): void {
-        if (this.busy) return;
-        const p = this.toLocal(e);
-        if (this.axis === 'drag' && this.ghost && this.dragDef) {
-            this.drop(new Vec3(this.ghost.position.x, this.ghost.position.y, 0));
-        } else if (this.axis === 'swipe') {
-            const dx = p.x - this.start.x;
-            if (Math.abs(dx) > 60) this.turn(dx < 0 ? 1 : -1);
-        } else {
-            const lx = p.x - this.panel.position.x;
-            const ly = p.y - this.panel.position.y;
-            for (const a of this.arrows) {
-                if (Math.abs(lx - a.x) <= 44 && Math.abs(ly - ARROW_Y) <= 44) { this.turn(a.dir); break; }
-            }
+    private onZoneTap(e: EventTouch): void {
+        if (!this.selected || this.busy) return;
+        const p = e.getUILocation();
+        const local = this.root.getComponent(UITransform)!.convertToNodeSpaceAR(new Vec3(p.x, p.y, 0));
+        const zone = this.hitZone(local);
+        if (zone < 0) {
+            this.clearSelection();
+            return;
         }
-        this.axis = 'none';
-        this.dragDef = null;
-        this.setHover(-1);
+        const key = this.selected;
+        const entry = this.cards.get(key)!;
+        if (zone !== entry.def.zone) {
+            this.toast(entry.def.hint, 2200);
+            this.clearSelection();
+            Tween.stopAllByTarget(entry.card);
+            entry.card.setScale(new Vec3(1, 1, 1));
+            tween(entry.card).to(0.08, { scale: new Vec3(1.06, 1.06, 1) }).to(0.1, { scale: new Vec3(1, 1, 1) }).start();
+            return;
+        }
+        this.place(key, zone);
     }
 
-    private onCancel(e: EventTouch): void {
-        // 拖到面板外松手时 Cocos 触发 CANCEL 而非 END，仍需处理放置
-        if (this.axis === 'drag' && this.ghost && this.dragDef) {
-            this.drop(new Vec3(this.ghost.position.x, this.ghost.position.y, 0));
-        } else if (this.ghost) {
-            this.ghost.destroy();
-            this.ghost = null;
-        }
-        this.axis = 'none';
-        this.dragDef = null;
-        this.setHover(-1);
+    private place(key: string, zone: number): void {
+        const entry = this.cards.get(key);
+        if (!entry) return;
+        this.clearSelection();
+        this.placed.add(key);
+        const idx = this.zoneCounts[zone]++;
+        const [tx, ty] = this.sceneSlot(zone, idx);
+        const from = new Vec3(this.panel.position.x + entry.card.position.x, this.panel.position.y + entry.card.position.y, 0);
+        const ghost = Img.icon(this.ghostLayer, entry.def.img ?? entry.def.key, entry.def.name,
+            frameLength(FRAME_DIAPER_ROOM, entry.def.size * 2), from.x, from.y);
+        opacity(ghost).opacity = 235;
+        tween(ghost)
+            .to(0.24, { position: new Vec3(tx, ty, 0) }, { easing: 'cubicOut' })
+            .call(() => {
+                ghost.destroy();
+                this.spawnPlaced(entry.def, tx, ty);
+                this.paintCard(key, true);
+                this.updateProgress();
+                this.checkDone();
+            })
+            .start();
     }
 
-    private drop(p: Vec3): void {
-        const def = this.dragDef!;
-        const ghost = this.ghost!;
-        this.ghost = null;
-        const zone = this.hitZone(p);
-        if (zone === def.zone) {
-            this.placed.add(def.key);
-            const idx = this.zoneCounts[def.zone]++;
-            const [tx, ty] = this.sceneSlot(def.zone, idx);
-            tween(ghost)
-                .to(0.18, { position: new Vec3(tx, ty, 0) })
-                .call(() => {
-                    ghost.destroy();
-                    this.spawnPlaced(def, tx, ty);
-                })
-                .start();
-            this.renderPage();
-            if (this.placed.size >= ITEMS.length) this.finish();
-        } else {
-            tween(ghost).to(0.2, { position: this.cardHome(def) }).call(() => ghost.destroy()).start();
-            if (zone >= 0) this.toast(def.hint);
-        }
-    }
-
-    /** 放置位按背景取景换算，保持道具与台面/抽屉/收纳筐对齐 */
     private sceneSlot(zone: number, idx: number): [number, number] {
         const [x, y] = SLOTS[zone][idx];
         const p = framePoint(FRAME_DIAPER_ROOM, x, y);
@@ -364,26 +320,104 @@ export class DiaperStationView {
     private spawnPlaced(def: DiaperItem, x: number, y: number): void {
         const size = frameLength(FRAME_DIAPER_ROOM, def.size);
         const n = Img.icon(this.placedLayer, def.img ?? def.key, def.name, size, x, y);
-        n.setScale(0.7, 0.7, 1);
+        n.setScale(new Vec3(0.7, 0.7, 1));
         tween(n).to(0.12, { scale: new Vec3(1.06, 1.06, 1) }).to(0.1, { scale: new Vec3(1, 1, 1) }).start();
     }
 
-    /** 调试：直接放置一个物品（跳过拖拽动画） */
-    debugPlace(key: string): void {
-        const def = ITEMS.find((d) => d.key === key);
-        if (!def || this.placed.has(key)) return;
-        this.placed.add(key);
-        const idx = this.zoneCounts[def.zone]++;
-        const [tx, ty] = this.sceneSlot(def.zone, idx);
-        this.spawnPlaced(def, tx, ty);
-        this.renderPage();
-        if (this.placed.size >= ITEMS.length) this.finish();
+    private paintCard(key: string, placed: boolean): void {
+        const entry = this.cards.get(key);
+        if (!entry) return;
+        paintBlock(entry.g, CARD_W, CARD_H,
+            placed ? new Color(235, 247, 238) : new Color(253, 236, 243), 20,
+            placed ? new Color(122, 154, 126) : undefined, 3);
+        entry.card.setScale(new Vec3(1, 1, 1));
+        entry.check.active = placed;
     }
 
-    private cardHome(def: DiaperItem): Vec3 {
-        const c = this.cards.find((it) => it.def.key === def.key);
-        const x = c ? c.x : 0;
-        return new Vec3(this.panel.position.x + x, this.panel.position.y + CARD_Y, 0);
+    private refreshCards(): void {
+        this.cards.forEach((entry, key) => this.paintCard(key, this.placed.has(key)));
+    }
+
+    private updateProgress(): void {
+        this.progressL.string = this.placed.size >= ITEMS.length
+            ? '已归位：10 / 10 · 检查通过'
+            : `已归位：${this.placed.size} / ${ITEMS.length}`;
+    }
+
+    private paintFrames(show: boolean): void {
+        this.frames.forEach((g, i) => {
+            g.clear();
+            if (!show) return;
+            const f = FRAMES[i];
+            const c = framePoint(FRAME_DIAPER_ROOM, f.x, f.y);
+            const w = frameLength(FRAME_DIAPER_ROOM, f.w);
+            const h = frameLength(FRAME_DIAPER_ROOM, f.h);
+            g.strokeColor = ZONE_COLORS[i];
+            g.lineWidth = 5;
+            g.roundRect(c.x - w / 2, c.y - h / 2, w, h, frameLength(FRAME_DIAPER_ROOM, 16));
+            g.stroke();
+        });
+    }
+
+    private hitZone(p: Vec3): number {
+        const q = unframePoint(FRAME_DIAPER_ROOM, p.x, p.y);
+        if (Math.abs(q.x - 40) <= 115 && q.y >= 195 && q.y <= 345) return 0;
+        if (Math.abs(q.x - 58) <= 95 && q.y >= 105 && q.y <= 195) return 1;
+        if (Math.abs(q.x - 185) <= 110 && q.y >= -180 && q.y <= 10) return 2;
+        return -1;
+    }
+
+    private checkDone(): void {
+        if (this.done || this.placed.size < ITEMS.length) return;
+        this.done = true;
+        this.busy = true;
+        void this.finishDiaper();
+    }
+
+    private async finishDiaper(): Promise<void> {
+        await new Promise<void>((r) => setTimeout(r, 520));
+        this.closeTray(false);
+        this.targetN.active = false;
+        this.chipN.active = false;
+        await showSafetyCard(this.modalLayer, {
+            title: '♥ 尿布台检查 ♥',
+            subtitle: '每样东西都在顺手又安全的位置。',
+            buttonLabel: '布置完成',
+            rows: [
+                { text: '台面只放伸手即取的必需品。', done: true },
+                { text: '备用物品收进抽屉，台面不堆东西。', done: true },
+                { text: '热水杯、粉末等危险物品远离宝宝。', done: true },
+                { text: '换尿布时，手始终不离开宝宝。', done: true },
+            ],
+            tip: '小智：需要转身拿东西时，先把宝宝抱起来或请人帮忙。',
+        });
+        this.toast('尿布台布置好了！', 900);
+        await new Promise<void>((r) => setTimeout(r, 900));
+        const op = opacity(this.root);
+        tween(op).to(0.3, { opacity: 0 }).call(() => {
+            this.root.active = false;
+            this.busy = false;
+            const r = this.resolve;
+            this.resolve = null;
+            if (r) r();
+        }).start();
+    }
+
+    /** 调试：直接归位一件物品（Playwright 验证用） */
+    debugPlace(key: string): void {
+        const entry = this.cards.get(key);
+        if (!entry || this.placed.has(key) || this.done) return;
+        this.placed.add(key);
+        const idx = this.zoneCounts[entry.def.zone]++;
+        const [tx, ty] = this.sceneSlot(entry.def.zone, idx);
+        this.spawnPlaced(entry.def, tx, ty);
+        this.paintCard(key, true);
+        this.updateProgress();
+        this.checkDone();
+    }
+
+    debugOpenTray(): void {
+        this.openTray();
     }
 
     private toast(msg: string, holdMs = 1600): void {
@@ -392,25 +426,5 @@ export class DiaperStationView {
         Tween.stopAllByTarget(op);
         op.opacity = 255;
         tween(op).delay(holdMs / 1000).to(0.3, { opacity: 0 }).start();
-    }
-
-    private finish(): void {
-        this.busy = true;
-        this.toast('尿布台布置好了！', 900);
-        setTimeout(() => {
-            const op = opacity(this.root);
-            tween(op).to(0.3, { opacity: 0 }).call(() => {
-                this.root.active = false;
-                this.busy = false;
-                const r = this.resolve;
-                this.resolve = null;
-                if (r) r();
-            }).start();
-        }, 1000);
-    }
-
-    private toLocal(e: EventTouch): Vec3 {
-        const p = e.getUILocation();
-        return this.root.getComponent(UITransform)!.convertToNodeSpaceAR(new Vec3(p.x, p.y, 0));
     }
 }

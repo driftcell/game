@@ -1,5 +1,6 @@
 import { BlockInputEvents, Color, EventTouch, Graphics, Label, Mask, Node, Tween, tween, UITransform, Vec2, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
+import { GameState } from '../core/GameState';
 import { block, button, Col, DW, label, labelInBox, layer, opacity, paintBlock, sleep, ui } from '../core/UITheme';
 
 export type HouseAreaId = 'living' | 'bedroom' | 'kitchen' | 'bathroom' | 'entry' | 'balcony' | 'study';
@@ -36,7 +37,7 @@ interface AreaNode {
     shade: Node | null;
 }
 
-const ART_W = 700;
+const ART_W = 820;
 const VIEW_W = 724;
 const VIEW_H = 570;
 const MIN_ZOOM = 1;
@@ -89,6 +90,8 @@ const AREAS: HouseAreaDef[] = [
 /** 全屋主界面：完整户型、房间热点、章节锁定态，以及放大后的拖动查看。 */
 export class HouseView {
     root: Node;
+    onOpen: () => void = () => {};
+    onClose: () => void = () => {};
     private viewport: Node;
     private artwork: Node;
     private artH: number;
@@ -118,7 +121,7 @@ export class HouseView {
         bg.addComponent(BlockInputEvents);
 
         this.titleL = labelInBox(this.root, '', 420, 60, { size: 34, bold: true, color: Col.ink, shrink: true }, -135, 710);
-        this.progressL = labelInBox(this.root, '', 420, 42, { size: 22, color: Col.gray }, -135, 656);
+        this.progressL = labelInBox(this.root, '', 480, 42, { size: 20, color: Col.gray }, -105, 656);
         this.houseTypeL = label(this.root, '户型① 两室一厅 · 全屋总览', { size: 22, color: Col.pinkDeep, bold: true }, 0, 576);
         label(this.root, '点房间查看 · 放大后可拖动 · 点「全屋」复位', { size: 21, color: Col.gray }, 0, 530);
 
@@ -131,27 +134,27 @@ export class HouseView {
 
         this.artwork = new Node('artwork');
         this.viewport.addChild(this.artwork);
-        const size = Img.size('house_overview');
+        const size = Img.size('house_overview_blank');
         this.artH = ART_W * size.height / size.width;
         ui(this.artwork, ART_W, this.artH);
-        Img.sprite(this.artwork, 'house_overview', ART_W);
+        Img.sprite(this.artwork, 'house_overview_blank', ART_W);
         this.buildAreas();
         this.bindPan();
 
         // 缩放控件始终在全屋层内，不依赖双指手感和浏览器滚轮。
-        button(this.root, '＋', () => this.changeZoom(0.25), { w: 72, h: 62, size: 34, radius: 18, x: 308, y: -116, color: Col.white, textColor: Col.pinkDeep });
-        button(this.root, '－', () => this.changeZoom(-0.25), { w: 72, h: 62, size: 34, radius: 18, x: 308, y: -190, color: Col.white, textColor: Col.pinkDeep });
-        button(this.root, '全屋', () => this.resetView(), { w: 104, h: 58, size: 23, radius: 18, x: 292, y: -268, color: Col.white, textColor: Col.pinkDeep });
+        button(this.root, '＋', () => this.changeZoom(0.25), { w: 80, h: 76, size: 34, radius: 20, x: 308, y: -94, color: Col.white, textColor: Col.pinkDeep });
+        button(this.root, '－', () => this.changeZoom(-0.25), { w: 80, h: 76, size: 34, radius: 20, x: 308, y: -172, color: Col.white, textColor: Col.pinkDeep });
+        button(this.root, '全屋', () => this.resetView(), { w: 112, h: 72, size: 24, radius: 20, x: 294, y: -250, color: Col.white, textColor: Col.pinkDeep });
 
-        const info = block(this.root, 650, 168, new Color(255, 255, 255, 242), 26, 0, -480, Col.line);
+        const info = block(this.root, 650, 168, new Color(255, 255, 255, 242), 26, 0, -380, Col.line);
         this.infoTitleL = labelInBox(info, '', 584, 46, { size: 28, bold: true, color: Col.pinkDeep, shrink: true }, 0, 43);
         this.infoBodyL = labelInBox(info, '', 580, 78, { size: 22, color: Col.ink, lineHeight: 31 }, 0, -30);
 
         this.actionLayer = new Node('action');
         this.root.addChild(this.actionLayer);
-        ui(this.actionLayer, DW, 130, 0, -682);
+        ui(this.actionLayer, DW, 130, 0, -530);
 
-        this.toastN = block(this.root, 610, 88, new Color(72, 60, 68, 238), 22, 0, -342);
+        this.toastN = block(this.root, 610, 88, new Color(72, 60, 68, 238), 22, 0, -240);
         this.toastL = labelInBox(this.toastN, '', 566, 72, { size: 22, color: Col.white, lineHeight: 29 });
         opacity(this.toastN).opacity = 0;
         this.root.active = false;
@@ -183,6 +186,7 @@ export class HouseView {
         const toastOp = opacity(this.toastN);
         Tween.stopAllByTarget(toastOp);
         toastOp.opacity = 0;
+        this.onOpen();
 
         const done = new Promise<void>((r) => { this.resolve = r; });
         if (this.revealPending) {
@@ -278,7 +282,7 @@ export class HouseView {
 
     private refreshProgress(): void {
         const count = AREAS.filter((a) => this.isOpen(a.id)).length;
-        this.progressL.string = `${count}/${AREAS.length} 个空间已点亮`;
+        this.progressL.string = `${count}/${AREAS.length} 个空间已点亮，已添置 ${GameState.owned.length} 件`;
         this.houseTypeL.string = this.isOpen('study') ? '户型③ 三室一厅 · 全屋总览'
             : this.isOpen('balcony') ? '户型② 两室一厅＋阳台 · 全屋总览'
                 : '户型① 两室一厅 · 全屋总览';
@@ -336,8 +340,23 @@ export class HouseView {
         tween(op).to(0.18, { opacity: 0 }).call(() => {
             this.root.active = false;
             op.opacity = 255;
+            this.onClose();
             done();
         }).start();
+    }
+
+    /** 从底部导航进入时的自由浏览：随时可关闭，不阻塞剧情 */
+    get isPlaying(): boolean {
+        return this.root.active;
+    }
+
+    close(): void {
+        if (this.root.active) this.finish();
+    }
+
+    /** 商店购买后刷新「已添置 N 件」 */
+    refreshOwned(): void {
+        this.refreshProgress();
     }
 
     private isOpen(id: HouseAreaId): boolean {
