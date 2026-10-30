@@ -6,6 +6,7 @@ import { DH, DW } from './core/UITheme';
 import { SEGMENTS, SLEEP_SAFETY_CARD, unlockedAreasThrough } from './story/Script';
 import { Ctx, runSteps } from './story/Runner';
 import { BagPackView } from './ui/BagPackView';
+import { BirthJourneyView } from './ui/BirthJourneyView';
 import { BottomNav } from './ui/BottomNav';
 import type { NavTab } from './ui/BottomNav';
 import { ChoiceView } from './ui/ChoiceView';
@@ -63,11 +64,12 @@ export class GameApp extends Component {
         const taskbar = new TaskBar(root);
         // 全屋是剧情节点中的导航层：完整显示户型，点当前区域后再进入原有场景/小游戏。
         const house = new HouseView(root);
-        // 睡眠区/购物清单/尿布台/待产包小游戏在任务卡之上、HUD 之下（保留孕周徽章）
+        // 第一章和第二章小游戏在任务卡之上、HUD 之下（保留孕周徽章）
         const sleepRoom = new SleepRoomView(root);
         const shoppingList = new ShoppingListView(root);
         const diaperStation = new DiaperStationView(root);
         const bagPack = new BagPackView(root);
+        const birthJourney = new BirthJourneyView(root);
         // 知识卡压在小游戏之上、手机之下（收进手机时飞向手机图标）
         const knowledgeCard = new KnowledgeCardView(root);
         const hud = new Hud(root);
@@ -110,12 +112,13 @@ export class GameApp extends Component {
         profile.onGoShop = () => this.openTab('shop');
         nav.onTab = (tab) => this.onNav(tab);
 
-        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, house, taskbar, hud, phone, overlay, bagPack, prefs, nav, chat };
+        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, house, taskbar, hud, phone, overlay, bagPack, birthJourney, prefs, nav, chat };
         (window as unknown as Record<string, unknown>).__house = house;
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
         (window as unknown as Record<string, unknown>).__shoppingList = shoppingList;
         (window as unknown as Record<string, unknown>).__diaperStation = diaperStation;
         (window as unknown as Record<string, unknown>).__bagPack = bagPack;
+        (window as unknown as Record<string, unknown>).__birthJourney = birthJourney;
         (window as unknown as Record<string, unknown>).__prefs = prefs;
         (window as unknown as Record<string, unknown>).__taskbar = taskbar;
         (window as unknown as Record<string, unknown>).__nav = nav;

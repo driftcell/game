@@ -395,6 +395,19 @@ function ch2PrefsSteps(): Step[] {
     ];
 }
 
+/** 第二章后半：记录发动信号，联系医院并出发。 */
+function ch2JourneySteps(): Step[] {
+    return [
+        { k: 'scene', s: 'bedroom-night' },
+        { k: 'badge', text: '孕39周+1天' },
+        { k: 'ui', run: async (ctx) => {
+            ctx.dialog.hide();
+            ctx.portraits.hide();
+            await focusMode(ctx, () => ctx.birthJourney.play());
+        } },
+    ];
+}
+
 function ch2EndSteps(): Step[] {
     return [
         { k: 'scene', s: 'bedroom-setup' },
@@ -407,7 +420,7 @@ function ch2EndSteps(): Step[] {
                 prompt: '回顾现在已经点亮的家。可以点房间放大查看，书房会在第四章结束后变成婴儿房。',
                 doneLabel: '看完啦',
             });
-            await ctx.overlay.showEnd('第二章｜为生产做准备', '下一段：第一次肚子发紧', '内容制作中，敬请期待');
+            await ctx.overlay.showEnd('第二章｜为生产做准备', '待产包已装好，正在前往医院', '第二章完成');
         } },
     ];
 }
@@ -426,6 +439,7 @@ export const SEGMENTS: Segment[] = [
     { id: 'ch1-balcony', label: '第一章｜阳台小花园', steps: ch1BalconySteps, unlocks: ['balcony'] },
     { id: 'ch2-bag', label: '第二章｜收拾待产包', steps: ch2BagSteps },
     { id: 'ch2-prefs', label: '第二章｜生产偏好', steps: ch2PrefsSteps },
+    { id: 'ch2-journey', label: '第二章｜出发去医院', steps: ch2JourneySteps },
     { id: 'ch2-end', label: '第二章｜尾声', steps: ch2EndSteps },
 ];
 

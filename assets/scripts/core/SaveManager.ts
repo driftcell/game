@@ -22,6 +22,7 @@ interface GlobalData { achievements: string[]; badge: number; }
 const SLOT_KEY = (i: number) => `growup30.slot.v1.${i}`;
 const GLOBAL_KEY = 'growup30.global.v1';
 const LEGACY_KEY = 'growup30.profile.v1';
+const CH2_JOURNEY_MIGRATION_KEY = 'growup30.migration.ch2-journey.v1';
 export const SLOT_COUNT = 3;
 
 /**
@@ -34,8 +35,9 @@ class SaveManagerData {
     currentCheckpoint = 'opening';
     currentLabel = '序幕';
 
-    /** 旧版单档 profile 迁移到槽位 0（视为已完成序幕），成就/角标并入全局 */
+    /** 启动时执行版本迁移；旧版单档 profile 也会并入槽位 0 和全局成就。 */
     migrate(): void {
+        this.migrateCh2Journey();
         const old = sys.localStorage.getItem(LEGACY_KEY);
         if (!old) return;
         sys.localStorage.removeItem(LEGACY_KEY);
@@ -52,6 +54,20 @@ class SaveManagerData {
             g.badge = d.badge ?? g.badge;
             this.saveGlobal(g);
         } catch (e) { /* 损坏就丢弃 */ }
+    }
+
+    /** 更新前已停在第二章尾声的存档，一次性移到新增流程；新结局不会反复重跑。 */
+    private migrateCh2Journey(): void {
+        if (sys.localStorage.getItem(CH2_JOURNEY_MIGRATION_KEY)) return;
+        for (let i = 0; i < SLOT_COUNT; i++) {
+            const d = this.read(i);
+            if (d?.checkpoint === 'ch2-end') {
+                this.writeRaw(i, { ...d, checkpoint: 'ch2-journey', label: '第二章｜出发去医院' });
+            }
+        }
+        try {
+            sys.localStorage.setItem(CH2_JOURNEY_MIGRATION_KEY, '1');
+        } catch (e) { /* 下次启动重试 */ }
     }
 
     global(): GlobalData {

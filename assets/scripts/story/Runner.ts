@@ -1,6 +1,7 @@
 import { Col } from '../core/UITheme';
 import { GameState } from '../core/GameState';
 import type { BagPackView } from '../ui/BagPackView';
+import type { BirthJourneyView } from '../ui/BirthJourneyView';
 import type { BottomNav } from '../ui/BottomNav';
 import type { ChoiceView } from '../ui/ChoiceView';
 import type { DialogView } from '../ui/DialogView';
@@ -41,6 +42,7 @@ export interface Ctx {
     phone: PhoneView;
     overlay: Overlay;
     bagPack: BagPackView;
+    birthJourney: BirthJourneyView;
     prefs: PrefsView;
     nav: BottomNav;
     chat: XiaozhiChatView;
