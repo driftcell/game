@@ -13,6 +13,8 @@ export interface SlotData {
     b: string;            // babyName
     pf?: number[][];      // 生产偏好勾选（第二章）
     sp?: string;          // 最想让医护记住的一条
+    stars?: number;       // 小星星余额
+    owned?: string[];     // 已添置的商店物品 id
 }
 
 interface GlobalData { achievements: string[]; badge: number; }
@@ -99,6 +101,8 @@ class SaveManagerData {
         GameState.babyName = d.b;
         GameState.prefs = d.pf ?? [];
         GameState.starPick = d.sp ?? '';
+        GameState.stars = d.stars ?? 120;
+        GameState.owned = d.owned ?? [];
         this.slot = slot;
         this.currentCheckpoint = d.checkpoint;
         this.currentLabel = d.label;
@@ -112,6 +116,7 @@ class SaveManagerData {
             v: 1, checkpoint: this.currentCheckpoint, label: this.currentLabel, savedAt: Date.now(),
             m: GameState.momName, st: GameState.supporterType, sn: GameState.supporterName, b: GameState.babyName,
             pf: GameState.prefs, sp: GameState.starPick,
+            stars: GameState.stars, owned: GameState.owned,
         });
         this.saveGlobal({ achievements: GameState.achievements, badge: GameState.badge });
     }

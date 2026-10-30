@@ -6,6 +6,8 @@ import { DH, DW } from './core/UITheme';
 import { SEGMENTS, SLEEP_SAFETY_CARD, unlockedAreasThrough } from './story/Script';
 import { Ctx, runSteps } from './story/Runner';
 import { BagPackView } from './ui/BagPackView';
+import { BottomNav } from './ui/BottomNav';
+import type { NavTab } from './ui/BottomNav';
 import { ChoiceView } from './ui/ChoiceView';
 import { DiaperStationView } from './ui/DiaperStationView';
 import { DialogView } from './ui/DialogView';
@@ -17,8 +19,10 @@ import { PhoneView } from './ui/PhoneView';
 import { PopupView } from './ui/PopupView';
 import { Portraits } from './ui/Portraits';
 import { PrefsView } from './ui/PrefsView';
+import { ProfileView } from './ui/ProfileView';
 import { SaveMenuView } from './ui/SaveMenuView';
 import { SceneView } from './ui/SceneView';
+import { ShopView } from './ui/ShopView';
 import { ShoppingListView } from './ui/ShoppingListView';
 import { SleepRoomView } from './ui/SleepRoomView';
 import { TaskBar } from './ui/TaskBar';
@@ -30,6 +34,11 @@ const { ccclass } = _decorator;
 /** 游戏入口：构建全部 UI 层，标题屏 -> 存档菜单 -> 从断点运行剧情 */
 @ccclass('GameApp')
 export class GameApp extends Component {
+    private house!: HouseView;
+    private shop!: ShopView;
+    private profile!: ProfileView;
+    private nav!: BottomNav;
+
     async onLoad(): Promise<void> {
         // 竖屏设计：高度优先，宽屏设备两侧留边
         view.setDesignResolutionSize(DW, DH, ResolutionPolicy.FIXED_HEIGHT);
@@ -64,43 +73,80 @@ export class GameApp extends Component {
         const hud = new Hud(root);
         // 生产偏好表单为全屏页：压在 HUD 之上（盖住孕周徽章，设计稿如此），在手机之下
         const prefs = new PrefsView(root);
+        // 手机图标在商店/我的之下：打开商店时不会浮在商品卡上
         const phone = new PhoneView(root);
         knowledgeCard.phonePos = phone.iconPos();
         knowledgeCard.onCollected = () => {
             phone.bounce();
             phone.setBadge(GameState.badge);
+            GameState.stars += 5;
+            GameState.save();
         };
+        // 底部导航 + 商店 / 我的：压在剧情和小游戏之上，弹窗和过场之下
+        const shop = new ShopView(root);
+        const profile = new ProfileView(root);
+        const nav = new BottomNav(root);
+        this.house = house;
+        this.shop = shop;
+        this.profile = profile;
+        this.nav = nav;
+        house.onOpen = () => this.refreshNav();
+        house.onClose = () => this.refreshNav();
         // 存档菜单在弹窗之下：删除/覆盖确认走 popup
         const saveMenu = new SaveMenuView(root);
         const popup = new PopupView(root);
         saveMenu.popup = popup;
+        shop.popup = popup;
         const thought = new ThoughtView(root);
         const overlay = new Overlay(root);
         // 入口在 HUD 层，聊天窗口在最顶层；剧情开始后显示入口
         const chat = new XiaozhiChatView(hud.root, root);
+        shop.onPurchase = () => {
+            profile.refresh();
+            house.refreshOwned();
+        };
+        shop.onClose = () => this.refreshNav();
+        profile.onClose = () => this.refreshNav();
+        profile.onGoShop = () => this.openTab('shop');
+        nav.onTab = (tab) => this.onNav(tab);
 
-        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, house, taskbar, hud, phone, overlay, bagPack, prefs };
+        const ctx: Ctx = { dialog, portraits, choices, thought, popup, scene, house, taskbar, hud, phone, overlay, bagPack, prefs, nav };
         (window as unknown as Record<string, unknown>).__house = house;
         (window as unknown as Record<string, unknown>).__sleepRoom = sleepRoom;
         (window as unknown as Record<string, unknown>).__shoppingList = shoppingList;
         (window as unknown as Record<string, unknown>).__diaperStation = diaperStation;
         (window as unknown as Record<string, unknown>).__bagPack = bagPack;
         (window as unknown as Record<string, unknown>).__prefs = prefs;
+        (window as unknown as Record<string, unknown>).__taskbar = taskbar;
+        (window as unknown as Record<string, unknown>).__nav = nav;
+        (window as unknown as Record<string, unknown>).__shop = shop;
+        (window as unknown as Record<string, unknown>).__profile = profile;
+        (window as unknown as Record<string, unknown>).__state = GameState;
         (window as unknown as Record<string, unknown>).__save = SaveManager;
         (window as unknown as Record<string, unknown>).__chat = chat;
 
-        // 任务卡点击：三个任务均为拖拽小游戏；睡眠区完成后接知识卡（收进手机）
+        // 任务卡点击：第一章按「清单 → 睡眠区 → 尿布台」顺序推进；小游戏期间收起底部导航
         taskbar.onTask = async (id) => {
-            if (id === 'list') {
-                await shoppingList.play();
-            } else if (id === 'sleep') {
-                await sleepRoom.play();
-                await knowledgeCard.play('知识卡｜安全睡眠五句话', SLEEP_SAFETY_CARD);
-                await sleepRoom.close();
-            } else {
-                await diaperStation.play();
+            this.shop.close();
+            this.profile.close();
+            this.nav.hide();
+            try {
+                if (id === 'list') {
+                    await shoppingList.play();
+                } else if (id === 'sleep') {
+                    await sleepRoom.play();
+                    await knowledgeCard.play('知识卡｜安全睡眠五句话', SLEEP_SAFETY_CARD);
+                    await sleepRoom.close();
+                } else {
+                    await diaperStation.play();
+                }
+                GameState.addStars(15);
+                taskbar.markDone(id);
+            } finally {
+                this.nav.show();
+                this.nav.flashStars(15);
+                this.refreshNav();
             }
-            taskbar.markDone(id);
         };
 
         this.runStory(ctx, saveMenu, chat);
@@ -111,6 +157,8 @@ export class GameApp extends Component {
             await ctx.overlay.titleScreen();
             const from = await this.bootMenu(saveMenu);
             chat.setEntryVisible(true);
+            this.nav.show();
+            this.refreshNav();
             let i = SEGMENTS.findIndex((s) => s.id === from);
             if (i < 0) i = 0;
             for (; i < SEGMENTS.length; i++) {
@@ -161,5 +209,47 @@ export class GameApp extends Component {
             return 'opening';
         }
         return this.bootMenu(saveMenu);
+    }
+
+    /** 底部导航：家 / 商店 / 我的 */
+    private onNav(tab: NavTab): void {
+        if (tab === 'home') {
+            this.shop.close();
+            this.profile.close();
+            this.nav.setActive('home');
+            if (this.house.isPlaying) return;
+            void this.house.play({
+                title: '我们的家',
+                prompt: '已经点亮的房间都可以点开看看。想添置家具和物品，随时去底部的「商店」慢慢挑。',
+                doneLabel: '回到故事',
+            }).then(() => this.refreshNav());
+            return;
+        }
+        if (tab === 'shop') {
+            this.profile.close();
+            this.shop.open();
+            this.nav.setActive('shop');
+            return;
+        }
+        this.shop.close();
+        this.profile.open();
+        this.nav.setActive('me');
+    }
+
+    /** 「我的」里的「去商店看看」 */
+    private openTab(tab: NavTab): void {
+        this.onNav(tab);
+    }
+
+    private refreshNav(): void {
+        if (this.shop.isOpen) {
+            this.nav.setActive('shop');
+        } else if (this.profile.isOpen) {
+            this.nav.setActive('me');
+        } else if (this.house.isPlaying) {
+            this.nav.setActive('home');
+        } else {
+            this.nav.setActive(null);
+        }
     }
 }

@@ -109,6 +109,27 @@ export function block(parent: Node, w: number, h: number, color: Color, radius =
     return n;
 }
 
+/** 五角星图标（小星星货币、商品价签共用） */
+export function starNode(parent: Node, size: number, color: Color, x = 0, y = 0): Node {
+    const n = new Node('star');
+    parent.addChild(n);
+    ui(n, size, size, x, y);
+    const g = n.addComponent(Graphics);
+    const r = size / 2;
+    const inner = r * 0.45;
+    for (let i = 0; i < 10; i++) {
+        const radius = i % 2 === 0 ? r : inner;
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const px = Math.cos(a) * radius;
+        const py = Math.sin(a) * radius;
+        if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+    }
+    g.close();
+    g.fillColor = color;
+    g.fill();
+    return n;
+}
+
 export interface LabelOpt {
     size?: number; color?: Color; bold?: boolean; italic?: boolean;
     family?: string; lineHeight?: number;

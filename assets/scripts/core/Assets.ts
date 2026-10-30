@@ -9,6 +9,8 @@ const MANIFEST: Record<string, string> = {
     bg_soft: 'img/scene/bg_soft',
     living_room: 'img/scene/living_room',
     house_overview: 'img/scene/house_overview',
+    /** 未布置的全屋图：开局和商店购买前使用，避免剧情早期就出现婴儿床 */
+    house_overview_blank: 'img/scene/house_overview_blank',
     mom: 'img/char/mom',
     dad: 'img/char/dad',
     xiaozhi: 'img/char/xiaozhi',

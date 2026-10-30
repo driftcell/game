@@ -1,6 +1,7 @@
 import { Col } from '../core/UITheme';
 import { GameState } from '../core/GameState';
 import type { BagPackView } from '../ui/BagPackView';
+import type { BottomNav } from '../ui/BottomNav';
 import type { ChoiceView } from '../ui/ChoiceView';
 import type { DialogView } from '../ui/DialogView';
 import type { HouseView } from '../ui/HouseView';
@@ -40,6 +41,7 @@ export interface Ctx {
     overlay: Overlay;
     bagPack: BagPackView;
     prefs: PrefsView;
+    nav: BottomNav;
 }
 
 function speakerInfo(who: Speaker): { label: string; portrait: Speaker } {
@@ -93,8 +95,10 @@ async function runStep(ctx: Ctx, s: Step): Promise<void> {
             if (GameState.achievements.indexOf(s.name) < 0) {
                 GameState.achievements.push(s.name);
                 GameState.badge++;
+                GameState.stars += 10;
                 GameState.save();
                 ctx.phone.setBadge(GameState.badge);
+                ctx.nav.flashStars(10);
                 await ctx.hud.banner.show(s.name);
             }
             break;
