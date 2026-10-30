@@ -9,9 +9,7 @@ interface CribItem {
     name: string;
     safe: boolean;
     hint?: string;
-    /** 飞进婴儿床后的显示宽度（设计稿坐标，会按取景缩放） */
-    insideW?: number;
-    /** 床内位置（取景前坐标） */
+    /** 飞入婴儿床的位置（取景前坐标） */
     slot?: Vec2;
 }
 
@@ -22,8 +20,8 @@ interface CribItem {
  * 床垫和睡袋都放好后，才弹出一次「睡眠空间检查」卡。
  */
 const ITEMS: CribItem[] = [
-    { key: 'mattress', name: '床垫', safe: true, insideW: 150, slot: new Vec2(-236, -50) },
-    { key: 'sleep_bag', name: '睡袋', safe: true, insideW: 86, slot: new Vec2(-232, -54) },
+    { key: 'mattress', name: '床垫', safe: true, slot: new Vec2(-236, -50) },
+    { key: 'sleep_bag', name: '睡袋', safe: true, slot: new Vec2(-232, -54) },
     { key: 'pillow', name: '枕头', safe: false, hint: '1 岁前不需要枕头，会增加窒息风险' },
     { key: 'quilt', name: '被子', safe: false, hint: '被子容易捂住口鼻，换成睡袋更安全' },
     { key: 'crib_bumper', name: '床围', safe: false, hint: '床围有缠绕和窒息风险，不要围在婴儿床边' },
@@ -44,7 +42,6 @@ export class SleepRoomView {
     root: Node;
     private panel: Node;
     private cribLayer: Node;
-    private placedLayer: Node;
     private ghostLayer: Node;
     private modalLayer: Node;
     private hintN: Node;
@@ -106,10 +103,6 @@ export class SleepRoomView {
         this.chipN.on(Node.EventType.TOUCH_END, () => this.openTray());
         tween(this.chipN).to(0.8, { scale: new Vec3(1.05, 1.05, 1) }).to(0.8, { scale: new Vec3(1, 1, 1) }).union().repeatForever().start();
 
-        this.placedLayer = new Node('placed');
-        this.root.addChild(this.placedLayer);
-        ui(this.placedLayer, DW, DH);
-
         this.ghostLayer = new Node('ghost');
         this.root.addChild(this.ghostLayer);
         ui(this.ghostLayer, DW, DH);
@@ -164,7 +157,6 @@ export class SleepRoomView {
         this.busy = false;
         this.trayOpen = false;
         this.done = false;
-        this.placedLayer.removeAllChildren();
         this.ghostLayer.removeAllChildren();
         this.modalLayer.removeAllChildren();
         Tween.stopAllByTarget(this.panel);
@@ -227,13 +219,19 @@ export class SleepRoomView {
         const from = new Vec3(this.panel.position.x + entry.card.position.x, this.panel.position.y + entry.card.position.y, 0);
         const slot = this.insideSlot(def);
         const ghost = Img.icon(this.ghostLayer, def.key, def.name, 96, from.x, from.y);
-        opacity(ghost).opacity = 235;
+        const ghostOpacity = opacity(ghost);
+        ghostOpacity.opacity = 235;
         tween(ghost)
             .to(0.26, { position: new Vec3(slot.x, slot.y, 0) }, { easing: 'cubicOut' })
             .call(() => {
-                ghost.destroy();
-                this.showInside(def, slot);
-                this.checkDone();
+                // 物品已经放进床里，不再把大图叠在床面上。
+                tween(ghostOpacity)
+                    .to(0.12, { opacity: 0 })
+                    .call(() => {
+                        ghost.destroy();
+                        this.checkDone();
+                    })
+                    .start();
             })
             .start();
     }
@@ -241,23 +239,6 @@ export class SleepRoomView {
     private insideSlot(def: CribItem): Vec2 {
         const slot = def.slot ?? new Vec2(-236, -52);
         return framePoint(FRAME_SLEEP_ROOM, slot.x, slot.y);
-    }
-
-    private showInside(def: CribItem, slot: Vec2): void {
-        const w = frameLength(FRAME_SLEEP_ROOM, def.insideW ?? 90);
-        const n = Img.sprite(this.placedLayer, def.key, w, slot.x, slot.y);
-        n.setScale(new Vec3(0.7, 0.7, 1));
-        tween(n).to(0.16, { scale: new Vec3(1.05, 1.05, 1) }).to(0.12, { scale: new Vec3(1, 1, 1) }).start();
-        this.restack();
-    }
-
-    private restack(): void {
-        const order = ['mattress', 'sleep_bag'];
-        this.placedLayer.children.forEach((n) => {
-            const key = n.name.replace('img_', '');
-            const idx = order.indexOf(key);
-            if (idx >= 0) n.setSiblingIndex(idx);
-        });
     }
 
     private paintCard(key: string, placed: boolean): void {
@@ -320,7 +301,6 @@ export class SleepRoomView {
         this.placed.add(key);
         this.paintCard(key, true);
         this.updateProgress();
-        this.showInside(entry.def, this.insideSlot(entry.def));
         this.checkDone();
     }
 
