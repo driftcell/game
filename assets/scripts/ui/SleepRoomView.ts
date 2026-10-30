@@ -1,90 +1,67 @@
-import { Button, Color, EventTouch, Graphics, HorizontalTextAlignment, Label, Node, Tween, tween, UITransform, Vec2, Vec3 } from 'cc';
+import { Color, Graphics, Node, Tween, tween, UITransform, UIOpacity, Vec2, Vec3 } from 'cc';
 import { Img } from '../core/Assets';
-import { block, button, Col, DH, DW, label, labelInBox, layer, opacity, paintBlock, ui } from '../core/UITheme';
+import { block, Col, DH, DW, label, labelInBox, layer, opacity, paintBlock, ui } from '../core/UITheme';
 import { FRAME_SLEEP_ROOM, frameLength, framePoint, sceneBackground } from './SceneView';
+import { showSafetyCard } from './SafetyCard';
 
-interface ItemDef {
-    key: string;          // 物品栏卡片资源 key
-    sceneKey?: string;    // 放进房间时使用的场景切图（默认与卡片同图）
-    name: string;         // 卡片文字
-    safe: boolean;        // 安全物品：吸附摆放；否则弹回并提示
-    hint?: string;        // 不安全物品的说明
-    slot?: Vec2;          // 吸附点（取景前的房间坐标，放置时按 FRAME_SLEEP_ROOM 换算）
-    scale?: number;       // 房间内的显示大小
-    z?: number;           // 叠放顺序
-    vanish?: boolean;     // 放到床里：飞入后淡出销毁，不做重叠显示
+interface CribItem {
+    key: string;
+    name: string;
+    safe: boolean;
+    hint?: string;
+    /** 飞进婴儿床后的显示宽度（设计稿坐标，会按取景缩放） */
+    insideW?: number;
+    /** 床内位置（取景前坐标） */
+    slot?: Vec2;
 }
 
-/** 顺序沿用设计稿物品栏，小夜灯移出玩法后为 5 / 5 / 1
- *  坐标按设计稿房间切片 1:1 换算（设计稿 4x 像素 ÷2 转游戏坐标）：
- *  婴儿床放在大床左侧（贴左床脚，还原设计稿「床就放在我们床的旁边」） */
-const ITEMS: ItemDef[] = [
-    { key: 'crib', sceneKey: 'crib_scene', name: '婴儿床', safe: true, slot: new Vec2(-231, -42), scale: 1.96, z: 30 },
-    { key: 'mattress', name: '坚实床垫', safe: true, slot: new Vec2(-236, -52), scale: 1.5, z: 0, vanish: true },
+/**
+ * 第一章：布置安全睡眠区。
+ * 婴儿床一开始就摆在房间里；点婴儿床 → 打开物品栏 → 点物品放进床里。
+ * 放对的东西进床，松软/多余的东西会被小智拦下并解释原因。
+ * 床垫和睡袋都放好后，才弹出一次「睡眠空间检查」卡。
+ */
+const ITEMS: CribItem[] = [
+    { key: 'mattress', name: '床垫', safe: true, insideW: 150, slot: new Vec2(-236, -50) },
+    { key: 'sleep_bag', name: '睡袋', safe: true, insideW: 86, slot: new Vec2(-232, -54) },
     { key: 'pillow', name: '枕头', safe: false, hint: '1 岁前不需要枕头，会增加窒息风险' },
     { key: 'quilt', name: '被子', safe: false, hint: '被子容易捂住口鼻，换成睡袋更安全' },
     { key: 'crib_bumper', name: '床围', safe: false, hint: '床围有缠绕和窒息风险，不要围在婴儿床边' },
     { key: 'plush', name: '毛绒玩具', safe: false, hint: '宝宝睡觉时，婴儿床里不放毛绒玩具' },
-    // 放到床里的东西（床垫/睡袋/袜子）vanish：飞入床中后隐藏
-    { key: 'sleep_bag', name: '睡袋', safe: true, slot: new Vec2(-232, -58), scale: 0.75, z: 35, vanish: true },
-    { key: 'hat', name: '帽子', safe: false, hint: '睡觉时不给宝宝戴帽子' },
-    { key: 'socks', name: '智能监控袜', safe: true, slot: new Vec2(-208, -64), scale: 0.45, z: 36, vanish: true },
+    { key: 'hat', name: '帽子', safe: false, hint: '睡觉时不给宝宝戴帽子，避免过热' },
     { key: 'mobile', name: '床铃', safe: false, hint: '床铃要挂在宝宝够不到的位置，睡觉前先移开' },
-    // 收纳筐放房间右下角地毯上；小夜灯不进玩法（右侧床头柜已自带台灯）
-    { key: 'basket', name: '收纳筐', safe: true, slot: new Vec2(235, -210), scale: 1.5, z: 40 },
 ];
 
-const SAFE_COUNT = ITEMS.filter((d) => d.safe).length;
-const PAGE_SIZE = 5;
-const CARD_W = 126;
-/** 物品图标统一留出内边距，避免高/宽尺寸不同的切图顶到卡片边缘 */
-const ICON_W = 84;
-const CARD_GAP = 16;
-const CARD_Y = 74;          // 面板局部坐标
-const LABEL_Y = -45;
-const DOTS_Y = -98;
-const ARROW_Y = -143;
-const HEADER_Y = 190;
-const PANEL_TOP = -368;     // 根坐标：面板上边缘
-const PANEL_H = 444;
-const PANEL_CY = PANEL_TOP - PANEL_H / 2;
+const REQUIRED = ['mattress', 'sleep_bag'];
+const CARD_W = 150;
+const CARD_H = 150;
+const CARD_X = [-246, -82, 82, 246];
+const CARD_Y = [58, -108];
+const PANEL_H = 520;
+const PANEL_CY = -DH / 2 + 260;
 
-/**
- * 第一章小游戏：布置安全睡眠区。
- * 从底部物品栏把物品拖进房间：安全物品吸附到预设位置，危险物品弹回并给出安全提示。
- * 物品栏 5/5/1 三页，可左右滑动或点箭头翻页。
- * 床+床垫放好 → 睡眠空间检查卡（进行中）→ 床上出现「!」观察点（我现在看到的）；
- * 全部放好 → 检查卡（全绿）→ 交还后由 GameApp 接知识卡。
- */
 export class SleepRoomView {
     root: Node;
     private panel: Node;
-    private cardLayer: Node;
+    private cribLayer: Node;
     private placedLayer: Node;
-    private dragLayer: Node;
+    private ghostLayer: Node;
     private modalLayer: Node;
     private hintN: Node;
-    private hintL: Label;
-    private bangN: Node | null = null;
-    private dots: Node[] = [];
-    private arrows: { x: number; dir: number }[] = [];
-    private cards: { def: ItemDef; x: number; node: Node }[] = [];
-    private placedNodes = new Map<string, Node>();
+    private hintL: ReturnType<typeof label>;
+    private ringN: Node;
+    private chipN: Node;
+    private targetN: Node;
+    private progressL: ReturnType<typeof label>;
+    private cards = new Map<string, { def: CribItem; card: Node; check: Node; g: Graphics }>();
     private placed = new Set<string>();
-    private page = 0;
-    private ghost: Node | null = null;
-    private dragDef: ItemDef | null = null;
-    private start = new Vec2();
-    private axis: 'none' | 'drag' | 'swipe' = 'none';
     private busy = false;
-    private cardOpen = false;
-    private partialShown = false;
-    private badgeShown = false;
+    private trayOpen = false;
+    private done = false;
     private resolve: (() => void) | null = null;
 
     constructor(parent: Node) {
         this.root = layer(parent, 'sleeproom');
-        // 全屏吞掉下层点击（任务卡、对白等）
         const catcher = new Node('catcher');
         this.root.addChild(catcher);
         const ct = catcher.addComponent(UITransform);
@@ -94,83 +71,106 @@ export class SleepRoomView {
 
         sceneBackground(this.root, 'bedroom', FRAME_SLEEP_ROOM, Col.pinkPale);
 
+        // 房间里的固定家具：婴儿床 + 收纳筐（不再作为物品栏卡片）
+        this.cribLayer = new Node('crib');
+        this.root.addChild(this.cribLayer);
+        ui(this.cribLayer, DW, DH);
+        const cribP = framePoint(FRAME_SLEEP_ROOM, -231, -42);
+        Img.sprite(this.cribLayer, 'crib_scene', frameLength(FRAME_SLEEP_ROOM, 196), cribP.x, cribP.y);
+        const basketP = framePoint(FRAME_SLEEP_ROOM, 235, -210);
+        Img.sprite(this.cribLayer, 'basket', frameLength(FRAME_SLEEP_ROOM, 140), basketP.x, basketP.y);
+
+        // 婴儿床的点击热区 + 呼吸提示
+        this.targetN = new Node('crib-target');
+        this.root.addChild(this.targetN);
+        ui(this.targetN, 300, 280, cribP.x, cribP.y + 10);
+        this.targetN.on(Node.EventType.TOUCH_END, () => this.openTray());
+
+        this.ringN = new Node('crib-ring');
+        this.root.addChild(this.ringN);
+        ui(this.ringN, 280, 230, cribP.x, cribP.y + 4);
+        const rg = this.ringN.addComponent(Graphics);
+        rg.lineWidth = 5;
+        rg.strokeColor = Col.pink;
+        rg.roundRect(-140, -115, 280, 230, 26);
+        rg.stroke();
+        const rop = this.ringN.addComponent(UIOpacity);
+        rop.opacity = 150;
+        tween(rop).to(0.8, { opacity: 255 }).to(0.8, { opacity: 130 }).union().repeatForever().start();
+
+        this.chipN = block(this.root, 190, 54, new Color(255, 255, 255, 246), 27, cribP.x + 46, cribP.y + 128, Col.pink);
+        label(this.chipN, '＋ 点击布置', { size: 21, bold: true, color: Col.pinkDeep });
+        this.chipN.on(Node.EventType.TOUCH_END, () => this.openTray());
+        tween(this.chipN).to(0.8, { scale: new Vec3(1.05, 1.05, 1) }).to(0.8, { scale: new Vec3(1, 1, 1) }).union().repeatForever().start();
+
         this.placedLayer = new Node('placed');
         this.root.addChild(this.placedLayer);
         ui(this.placedLayer, DW, DH);
 
+        this.ghostLayer = new Node('ghost');
+        this.root.addChild(this.ghostLayer);
+        ui(this.ghostLayer, DW, DH);
+
         this.panel = new Node('panel');
         this.root.addChild(this.panel);
-        ui(this.panel, DW, PANEL_H, 0, PANEL_CY);
+        ui(this.panel, DW, PANEL_H, 0, PANEL_CY - PANEL_H - 40);
         const pg = this.panel.addComponent(Graphics);
-        pg.fillColor = new Color(62, 58, 62, 242);
+        pg.fillColor = new Color(62, 58, 62, 246);
         pg.rect(-DW / 2, -PANEL_H / 2, DW, PANEL_H);
         pg.fill();
-        // 顶部横条 + 中央向下展开的梯形
         pg.fillColor = new Color(44, 41, 44, 255);
-        pg.rect(-DW / 2, PANEL_H / 2 - 56, DW, 56);
+        pg.rect(-DW / 2, PANEL_H / 2 - 54, DW, 54);
         pg.fill();
-        pg.moveTo(-150, PANEL_H / 2 - 56);
-        pg.lineTo(150, PANEL_H / 2 - 56);
-        pg.lineTo(260, PANEL_H / 2 - 112);
-        pg.lineTo(-260, PANEL_H / 2 - 112);
-        pg.close();
-        pg.fill();
-        label(this.panel, '物品栏', { size: 34, bold: true, color: Col.white }, 0, HEADER_Y);
+        label(this.panel, '把东西放进婴儿床', { size: 31, bold: true, color: Col.white }, -60, 220);
+        labelInBox(this.panel, '点物品就能放进去。睡觉不需要的东西，小智会拦下。', 620, 40,
+            { size: 18, color: new Color(196, 188, 193) }, 0, 178);
+        const close = block(this.panel, 96, 44, new Color(255, 255, 255, 36), 22, 303, 220);
+        label(close, '收起', { size: 19, color: Col.white });
+        close.on(Node.EventType.TOUCH_END, () => this.closeTray(true));
 
-        this.cardLayer = new Node('cards');
-        this.panel.addChild(this.cardLayer);
-        ui(this.cardLayer, DW, PANEL_H);
-        this.renderPage();
+        ITEMS.forEach((def, i) => this.buildCard(def, i));
+        this.progressL = label(this.panel, '已放入：0 / 2', { size: 19, color: new Color(196, 188, 193) }, 0, -218);
 
-        const pageCount = Math.ceil(ITEMS.length / PAGE_SIZE);
-        for (let i = 0; i < pageCount; i++) {
-            this.dots.push(block(this.panel, 18, 18, new Color(120, 112, 118), 9, (i - (pageCount - 1) / 2) * 34, DOTS_Y));
-        }
-        this.refreshDots();
-        this.chevron(-315, -1);
-        this.chevron(315, 1);
-        label(this.panel, '左右滑动', { size: 20, color: new Color(150, 143, 148) }, 0, ARROW_Y - 24);
-
-        this.dragLayer = new Node('drag');
-        this.root.addChild(this.dragLayer);
-        ui(this.dragLayer, DW, DH);
-
-        this.hintN = block(this.root, 600, 88, new Color(35, 30, 35, 228), 20, 0, 20);
-        this.hintL = labelInBox(this.hintN, '', 560, 80, { size: 26, color: Col.white });
+        this.hintN = block(this.root, 650, 84, new Color(35, 30, 35, 230), 20, 0, 24);
+        this.hintL = labelInBox(this.hintN, '', 610, 76, { size: 23, color: Col.white, lineHeight: 32 });
         opacity(this.hintN).opacity = 0;
 
-        // 弹卡层（检查卡/观察卡），最顶层
         this.modalLayer = new Node('modal');
         this.root.addChild(this.modalLayer);
         ui(this.modalLayer, DW, DH);
 
-        this.panel.on(Node.EventType.TOUCH_START, this.onDown, this);
-        this.panel.on(Node.EventType.TOUCH_MOVE, this.onMove, this);
-        this.panel.on(Node.EventType.TOUCH_END, this.onUp, this);
-        this.panel.on(Node.EventType.TOUCH_CANCEL, this.onCancel, this);
-
         this.root.active = false;
     }
 
-    /** 进入小游戏：重置并淡入，返回的 Promise 在布置完成后 resolve（房间保留作知识卡背景） */
+    private buildCard(def: CribItem, i: number): void {
+        const x = CARD_X[i % 4];
+        const y = CARD_Y[Math.floor(i / 4)];
+        const card = block(this.panel, CARD_W, CARD_H, new Color(253, 236, 243), 20, x, y);
+        const g = card.getComponent(Graphics)!;
+        Img.icon(card, def.key, def.name, 76, 0, 18);
+        label(card, def.name, { size: 20, color: Col.ink }, 0, -50);
+        const check = Img.sprite(card, 'check_green', 30, 54, 54);
+        check.active = false;
+        card.on(Node.EventType.TOUCH_END, () => this.tryPlace(def.key));
+        this.cards.set(def.key, { def, card, check, g });
+    }
+
     play(): Promise<void> {
-        this.page = 0;
         this.placed.clear();
-        this.placedNodes.clear();
-        this.placedLayer.removeAllChildren();
-        this.dragLayer.removeAllChildren();
-        this.ghost = null;
-        this.dragDef = null;
-        this.axis = 'none';
         this.busy = false;
-        this.cardOpen = false;
-        this.partialShown = false;
-        this.badgeShown = false;
-        if (this.bangN) { this.bangN.destroy(); this.bangN = null; }
+        this.trayOpen = false;
+        this.done = false;
+        this.placedLayer.removeAllChildren();
+        this.ghostLayer.removeAllChildren();
         this.modalLayer.removeAllChildren();
-        opacity(this.panel).opacity = 255;
-        this.renderPage();
-        this.refreshDots();
+        Tween.stopAllByTarget(this.panel);
+        this.panel.setPosition(0, PANEL_CY - PANEL_H - 40, 0);
+        this.panel.active = false;
+        this.targetN.active = true;
+        this.ringN.active = true;
+        this.chipN.active = true;
+        this.refreshCards();
+        this.updateProgress();
         opacity(this.hintN).opacity = 0;
         const op = opacity(this.root);
         op.opacity = 0;
@@ -179,355 +179,153 @@ export class SleepRoomView {
         return new Promise<void>((r) => { this.resolve = r; });
     }
 
-    private renderPage(): void {
-        this.cardLayer.removeAllChildren();
-        this.cards = [];
-        const items = ITEMS.slice(this.page * PAGE_SIZE, this.page * PAGE_SIZE + PAGE_SIZE);
-        const totalW = items.length * CARD_W + (items.length - 1) * CARD_GAP;
-        let x = -totalW / 2 + CARD_W / 2;
-        for (const def of items) {
-            const card = block(this.cardLayer, CARD_W, CARD_W, Col.pinkSoft, 18, x, CARD_Y);
-            Img.sprite(card, def.key, ICON_W, 0, 6);
-            label(this.cardLayer, def.name, { size: 22, color: new Color(242, 234, 238) }, x, LABEL_Y);
-            if (this.placed.has(def.key)) opacity(card).opacity = 100;
-            this.cards.push({ def, x, node: card });
-            x += CARD_W + CARD_GAP;
+    private openTray(): void {
+        if (this.trayOpen || this.busy || this.done) return;
+        this.trayOpen = true;
+        this.targetN.active = false;
+        this.chipN.active = false;
+        this.ringN.active = false;
+        this.panel.active = true;
+        Tween.stopAllByTarget(this.panel);
+        this.panel.setPosition(0, PANEL_CY - PANEL_H - 40, 0);
+        tween(this.panel).to(0.28, { position: new Vec3(0, PANEL_CY, 0) }, { easing: 'cubicOut' }).start();
+        this.toast('点一件物品，把它放进婴儿床里', 1600);
+    }
+
+    private closeTray(showTarget: boolean): void {
+        if (!this.trayOpen) return;
+        this.trayOpen = false;
+        Tween.stopAllByTarget(this.panel);
+        tween(this.panel).to(0.24, { position: new Vec3(0, PANEL_CY - PANEL_H - 40, 0) }, { easing: 'cubicIn' })
+            .call(() => { this.panel.active = false; }).start();
+        if (showTarget && !this.done) {
+            this.targetN.active = true;
+            this.chipN.active = true;
+            this.ringN.active = true;
         }
     }
 
-    private refreshDots(): void {
-        this.dots.forEach((d, i) => {
-            const g = d.getComponent(Graphics);
-            if (g) paintBlock(g, 18, 18, i === this.page ? Col.pink : new Color(120, 112, 118), 9);
-        });
-    }
-
-    private chevron(x: number, dir: number): void {
-        const n = new Node('arrow');
-        this.panel.addChild(n);
-        ui(n, 80, 80, x, ARROW_Y);
-        const g = n.addComponent(Graphics);
-        g.lineWidth = 8;
-        g.strokeColor = new Color(202, 192, 198);
-        g.moveTo(12 * dir, 20);
-        g.lineTo(-12 * dir, 0);
-        g.lineTo(12 * dir, -20);
-        g.stroke();
-        this.arrows.push({ x, dir });
-    }
-
-    private turn(dir: number): void {
-        const max = Math.ceil(ITEMS.length / PAGE_SIZE) - 1;
-        const next = Math.min(Math.max(this.page + dir, 0), max);
-        if (next === this.page) return;
-        this.page = next;
-        this.renderPage();
-        this.refreshDots();
-    }
-
-    private onDown(e: EventTouch): void {
-        if (this.busy) return;
-        const p = this.toLocal(e);
-        this.start.set(p.x, p.y);
-        this.axis = 'none';
-        this.dragDef = null;
-        const lx = p.x - this.panel.position.x;
-        const ly = p.y - this.panel.position.y;
-        for (const c of this.cards) {
-            if (this.placed.has(c.def.key)) continue;
-            if (Math.abs(lx - c.x) <= CARD_W / 2 + 6 && Math.abs(ly - CARD_Y) <= CARD_W / 2 + 6) {
-                this.dragDef = c.def;
-                break;
-            }
+    private tryPlace(key: string): void {
+        if (this.busy || this.done) return;
+        const entry = this.cards.get(key);
+        if (!entry || this.placed.has(key)) return;
+        const def = entry.def;
+        if (!def.safe) {
+            this.toast(def.hint ?? '这个先不放进床里', 2000);
+            Tween.stopAllByTarget(entry.card);
+            entry.card.setScale(new Vec3(1, 1, 1));
+            tween(entry.card).to(0.08, { scale: new Vec3(1.06, 1.06, 1) }).to(0.1, { scale: new Vec3(1, 1, 1) }).start();
+            return;
         }
+        this.placed.add(key);
+        this.paintCard(key, true);
+        this.updateProgress();
+
+        const from = new Vec3(this.panel.position.x + entry.card.position.x, this.panel.position.y + entry.card.position.y, 0);
+        const slot = this.insideSlot(def);
+        const ghost = Img.icon(this.ghostLayer, def.key, def.name, 96, from.x, from.y);
+        opacity(ghost).opacity = 235;
+        tween(ghost)
+            .to(0.26, { position: new Vec3(slot.x, slot.y, 0) }, { easing: 'cubicOut' })
+            .call(() => {
+                ghost.destroy();
+                this.showInside(def, slot);
+                this.checkDone();
+            })
+            .start();
     }
 
-    private onMove(e: EventTouch): void {
-        if (this.busy) return;
-        const p = this.toLocal(e);
-        const dx = p.x - this.start.x;
-        const dy = p.y - this.start.y;
-        if (this.axis === 'none') {
-            if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;
-            this.axis = this.dragDef && Math.abs(dy) >= Math.abs(dx) ? 'drag' : 'swipe';
-            if (this.axis === 'drag' && this.dragDef) {
-                const s = this.dragDef.scale ?? 1;
-                const w = frameLength(FRAME_SLEEP_ROOM, 100 * s);
-                this.ghost = Img.sprite(this.dragLayer, this.dragDef.sceneKey ?? this.dragDef.key, w, p.x, p.y + 60);
-                opacity(this.ghost).opacity = 235;
-            }
-        }
-        if (this.axis === 'drag' && this.ghost) {
-            this.ghost.setPosition(p.x, p.y + 60, 0);
-        }
-    }
-
-    private onUp(e: EventTouch): void {
-        if (this.busy) return;
-        const p = this.toLocal(e);
-        if (this.axis === 'drag' && this.ghost && this.dragDef) {
-            this.drop(p);
-        } else if (this.axis === 'swipe') {
-            const dx = p.x - this.start.x;
-            if (Math.abs(dx) > 60) this.turn(dx < 0 ? 1 : -1);
-        } else {
-            const lx = p.x - this.panel.position.x;
-            const ly = p.y - this.panel.position.y;
-            for (const a of this.arrows) {
-                if (Math.abs(lx - a.x) <= 44 && Math.abs(ly - ARROW_Y) <= 44) { this.turn(a.dir); break; }
-            }
-        }
-        this.axis = 'none';
-        this.dragDef = null;
-    }
-
-    private onCancel(e: EventTouch): void {
-        // 拖到面板外松手时 Cocos 触发 CANCEL 而非 END，仍需处理放置
-        if (this.axis === 'drag' && this.ghost && this.dragDef) {
-            const p = this.toLocal(e);
-            this.drop(p);
-        } else if (this.ghost) {
-            this.ghost.destroy();
-            this.ghost = null;
-        }
-        this.axis = 'none';
-        this.dragDef = null;
-    }
-
-    private drop(p: Vec3): void {
-        const def = this.dragDef!;
-        const ghost = this.ghost!;
-        this.ghost = null;
-        if (def.safe && p.y > PANEL_TOP + 20) {
-            const slot = this.sceneSlot(def);
-            this.placed.add(def.key);
-            if (def.vanish) {
-                tween(ghost).to(0.18, { position: new Vec3(slot.x, slot.y, 0) }).start();
-                tween(opacity(ghost)).delay(0.18).to(0.12, { opacity: 0 }).call(() => ghost.destroy()).start();
-            } else {
-                this.placedNodes.set(def.key, ghost);
-                tween(ghost)
-                    .to(0.18, { position: new Vec3(slot.x, slot.y, 0) })
-                    .call(() => {
-                        ghost.setParent(this.placedLayer);
-                        ghost.setPosition(slot.x, slot.y, 0);
-                        this.restack();
-                    })
-                    .start();
-            }
-            this.renderPage();
-            this.maybeCards();
-        } else {
-            tween(ghost).to(0.2, { position: this.cardHome(def) }).call(() => ghost.destroy()).start();
-            if (!def.safe && def.hint) this.toast(def.hint);
-        }
-    }
-
-    /** 吸附点按背景取景换算，保持物品与房间切图对齐 */
-    private sceneSlot(def: ItemDef): Vec2 {
-        const slot = def.slot!;
+    private insideSlot(def: CribItem): Vec2 {
+        const slot = def.slot ?? new Vec2(-236, -52);
         return framePoint(FRAME_SLEEP_ROOM, slot.x, slot.y);
     }
 
-    /** 调试：直接放置一个安全物品（跳过拖拽动画） */
-    debugPlace(key: string): void {
-        const def = ITEMS.find((d) => d.key === key);
-        if (!def || !def.safe || this.placed.has(key)) return;
-        this.placed.add(key);
-        if (!def.vanish) {
-            const s = def.scale ?? 1;
-            const slot = this.sceneSlot(def);
-            const w = frameLength(FRAME_SLEEP_ROOM, 100 * s);
-            const node = Img.sprite(this.placedLayer, def.sceneKey ?? key, w, slot.x, slot.y);
-            this.placedNodes.set(key, node);
-            this.restack();
-        }
-        this.renderPage();
-        this.maybeCards();
-    }
-
-    private cardHome(def: ItemDef): Vec3 {
-        const c = this.cards.find((it) => it.def.key === def.key);
-        const x = c ? c.x : 0;
-        return new Vec3(this.panel.position.x + x, this.panel.position.y + CARD_Y, 0);
+    private showInside(def: CribItem, slot: Vec2): void {
+        const w = frameLength(FRAME_SLEEP_ROOM, def.insideW ?? 90);
+        const n = Img.sprite(this.placedLayer, def.key, w, slot.x, slot.y);
+        n.setScale(new Vec3(0.7, 0.7, 1));
+        tween(n).to(0.16, { scale: new Vec3(1.05, 1.05, 1) }).to(0.12, { scale: new Vec3(1, 1, 1) }).start();
+        this.restack();
     }
 
     private restack(): void {
-        ITEMS.filter((d) => this.placedNodes.has(d.key))
-            .sort((a, b) => (a.z ?? 0) - (b.z ?? 0))
-            .forEach((d, i) => this.placedNodes.get(d.key)!.setSiblingIndex(i));
-    }
-
-    private toast(msg: string, holdMs = 1600): void {
-        this.hintL.string = msg;
-        const op = opacity(this.hintN);
-        Tween.stopAllByTarget(op);
-        op.opacity = 255;
-        tween(op).delay(holdMs / 1000).to(0.3, { opacity: 0 }).start();
-    }
-
-    /* ---------------- 检查卡 / 观察卡 ---------------- */
-
-    /** 每次放置后推进卡片节奏 */
-    private maybeCards(): void {
-        if (this.cardOpen) return;
-        const p = this.placed;
-        // 床+床垫放好但还没放睡袋：先弹一次检查卡（进行中状态）
-        if (!this.partialShown && p.has('crib') && p.has('mattress') && !p.has('sleep_bag')) {
-            this.partialShown = true;
-            this.busy = true;
-            void this.openCheckCard(false).then(() => {
-                this.busy = false;
-                this.maybeCards();
-            });
-            return;
-        }
-        // 床+床垫就绪后，在床上挂「!」观察点
-        if (!this.badgeShown && p.has('crib') && p.has('mattress')) {
-            this.badgeShown = true;
-            this.showBang();
-        }
-        // 全部安全物品放完：总结检查卡（全绿）→ 收尾
-        if (p.size >= SAFE_COUNT) {
-            this.busy = true;
-            void this.openCheckCard(true).then(() => this.finish());
-        }
-    }
-
-    /** 睡眠空间检查卡：小智探头 + 图钉 + 三项清单；全绿用「好极了！」，否则「先这样，等下再说」 */
-    private openCheckCard(allDone: boolean): Promise<void> {
-        this.cardOpen = true;
-        const L = this.modalLayer;
-        L.removeAllChildren();
-        return new Promise<void>((resolve) => {
-            const close = (): void => {
-                this.cardOpen = false;
-                L.removeAllChildren();
-                resolve();
-            };
-            const dim = block(L, 20000, 20000, new Color(30, 20, 30, 110));
-            dim.on(Node.EventType.TOUCH_END, () => { /* 吞掉 */ });
-
-            const W = 580;
-            const H = 560;
-            const cy = 330;
-            const card = block(L, W, H, Col.white, 24, 0, cy, Col.line);
-            card.setScale(0.9, 0.9, 1);
-            tween(card).to(0.2, { scale: new Vec3(1, 1, 1) }).start();
-            // 小智探头（左上外沿）+ 图钉（右上）
-            Img.sprite(card, 'xz_peek', 150, -W / 2 + 80, H / 2 + 24);
-            Img.sprite(card, 'pin', 44, W / 2 - 26, H / 2 - 6);
-
-            label(card, '♥ 睡眠空间检查 ♥', { size: 34, bold: true, color: Col.pinkDeep }, 0, H / 2 - 86);
-            label(card, allDone ? '你已经完成了所有睡眠空间要求！' : '目前的进度：', { size: 24, color: Col.gray }, 0, H / 2 - 136);
-
-            const checks = [
-                { key: 'crib', text: '宝宝有独立睡眠空间。' },
-                { key: 'mattress', text: '睡眠表面坚实、平坦、非倾斜。' },
-                { key: 'sleep_bag', text: '床内没有枕头、被子、床围、毛绒玩具等松软物品。' },
-            ];
-            let y = H / 2 - 196;
-            for (const c of checks) {
-                const done = this.placed.has(c.key);
-                if (done) {
-                    Img.sprite(card, 'check_green', 44, -W / 2 + 56, y);
-                } else {
-                    block(card, 40, 40, new Color(228, 224, 228), 10, -W / 2 + 56, y);
-                }
-                labelInBox(card, c.text, 420, 72, { size: 26, color: done ? Col.ink : Col.gray, hAlign: HorizontalTextAlignment.LEFT, lineHeight: 34 }, -W / 2 + 304, y);
-                y -= 82;
-            }
-
-            if (allDone) {
-                const btn = Img.sprite(card, 'btn_great', 300, 0, -H / 2 + 86);
-                label(btn, '好极了！', { size: 32, bold: true, color: Col.white });
-                const bb = btn.addComponent(Button);
-                bb.transition = Button.Transition.SCALE;
-                bb.zoomScale = 0.94;
-                bb.target = btn;
-                btn.once(Button.EventType.CLICK, close);
-            } else {
-                button(card, '先这样，等下再说', close, { w: 380, h: 84, y: -H / 2 + 78, size: 30 });
-                // 小智提示气泡（卡下）
-                const tip = block(L, 560, 84, Col.white, 16, 0, cy - H / 2 - 70);
-                labelInBox(tip, '小智：要不要从宝宝真正睡觉时的安全角度再检查一次？', 528, 76, { size: 24, color: Col.pinkDeep, lineHeight: 32 });
-            }
+        const order = ['mattress', 'sleep_bag'];
+        this.placedLayer.children.forEach((n) => {
+            const key = n.name.replace('img_', '');
+            const idx = order.indexOf(key);
+            if (idx >= 0) n.setSiblingIndex(idx);
         });
     }
 
-    /** 婴儿床上的橙色「!」观察点（呼吸脉冲，点开观察卡） */
-    private showBang(): void {
-        const n = new Node('bang');
-        this.root.addChild(n);
-        const p = framePoint(FRAME_SLEEP_ROOM, -272, 62);
-        ui(n, 56, 56, p.x, p.y);
-        const g = n.addComponent(Graphics);
-        g.fillColor = new Color(245, 130, 40);
-        g.circle(0, 0, 28);
-        g.fill();
-        label(n, '!', { size: 38, bold: true, color: Col.white }, 0, 1);
-        tween(n).to(0.7, { scale: new Vec3(1.15, 1.15, 1) }).to(0.7, { scale: new Vec3(1, 1, 1) }).union().repeatForever().start();
-        n.on(Node.EventType.TOUCH_END, () => {
-            if (this.cardOpen) return;
-            void this.openObsCard();
-        });
-        this.bangN = n;
+    private paintCard(key: string, placed: boolean): void {
+        const entry = this.cards.get(key);
+        if (!entry) return;
+        paintBlock(entry.g, CARD_W, CARD_H,
+            placed ? new Color(235, 247, 238) : new Color(253, 236, 243), 20,
+            placed ? new Color(122, 154, 126) : undefined, 3);
+        entry.check.active = placed;
     }
 
-    /** 「我现在看到的」观察卡：底部滑出，点击任意处关闭 */
-    private openObsCard(): Promise<void> {
-        this.cardOpen = true;
+    private refreshCards(): void {
+        this.cards.forEach((entry, key) => this.paintCard(key, this.placed.has(key)));
+    }
+
+    private updateProgress(): void {
+        const n = REQUIRED.filter((k) => this.placed.has(k)).length;
+        this.progressL.string = n >= REQUIRED.length ? '已放入：床垫、睡袋 · 检查通过' : `已放入：${n} / ${REQUIRED.length}（床垫、睡袋）`;
+    }
+
+    private checkDone(): void {
+        if (this.done) return;
+        if (REQUIRED.some((k) => !this.placed.has(k))) return;
+        this.done = true;
         this.busy = true;
-        const L = this.modalLayer;
-        L.removeAllChildren();
-        return new Promise<void>((resolve) => {
-            const close = (): void => {
-                tween(card).to(0.25, { position: new Vec3(0, cardY - DH, 0) }).call(() => {
-                    this.cardOpen = false;
-                    this.busy = false;
-                    L.removeAllChildren();
-                    resolve();
-                }).start();
-            };
-            const dim = block(L, 20000, 20000, new Color(30, 20, 30, 110));
-            dim.on(Node.EventType.TOUCH_END, close);
-
-            const W = 700;
-            const H = 430;
-            const cardY = -DH / 2 + H / 2 + 60;
-            const card = block(L, W, H, Col.white, 32, 0, cardY - DH);
-            card.name = 'obs';
-            const header = block(card, W, 92, Col.pink, 32, 0, H / 2 - 46);
-            block(header, W, 40, Col.pink, 0, 0, -26);
-            label(header, '我现在看到的', { size: 32, bold: true, color: Col.white });
-
-            const rows = ['床面平坦、坚实；', '床内只有一张贴合的床垫；', '床就放在我们床的旁边。'];
-            let y = H / 2 - 140;
-            rows.forEach((t, i) => {
-                label(card, `①②③`[i], { size: 30, bold: true, color: Col.pink }, -W / 2 + 70, y);
-                labelInBox(card, t, 500, 64, { size: 28, color: Col.ink, hAlign: HorizontalTextAlignment.LEFT }, -W / 2 + 330, y);
-                y -= 88;
-            });
-            label(card, '（点击任意处继续）', { size: 22, color: Col.gray }, 0, -H / 2 + 44);
-            card.on(Node.EventType.TOUCH_END, close);
-            tween(card).to(0.3, { position: new Vec3(0, cardY, 0) }, { easing: 'cubicOut' }).start();
-        });
+        void this.finishCrib();
     }
 
-    private finish(): void {
-        this.busy = true;
-        if (this.bangN) { this.bangN.destroy(); this.bangN = null; }
+    private async finishCrib(): Promise<void> {
+        this.updateProgress();
+        await new Promise<void>((r) => setTimeout(r, 520));
+        this.closeTray(false);
+        this.targetN.active = false;
+        this.chipN.active = false;
+        this.ringN.active = false;
+        await showSafetyCard(this.modalLayer, {
+            title: '♥ 睡眠空间检查 ♥',
+            subtitle: '检查通过。宝宝可以安全地睡在这里了。',
+            buttonLabel: '布置完成',
+            rows: [
+                { text: '宝宝有独立的睡眠空间。', done: true },
+                { text: '睡眠表面坚实、平坦、非倾斜。', done: true },
+                { text: '床内没有枕头、被子、床围、毛绒玩具。', done: true },
+                { text: '床就放在大床旁边，同室不同床。', done: true },
+            ],
+            tip: '小智：睡觉时穿睡袋，不盖被子，也不戴帽子。',
+        });
         this.toast('睡眠区布置完成！', 900);
-        setTimeout(() => {
-            // 只收起物品栏，保留布置好的房间作为知识卡背景；交还后由 close() 淡出
-            tween(opacity(this.panel)).to(0.3, { opacity: 0 }).start();
-            const r = this.resolve;
-            this.resolve = null;
-            if (r) r();
-        }, 1000);
+        await new Promise<void>((r) => setTimeout(r, 900));
+        this.busy = false;
+        const r = this.resolve;
+        this.resolve = null;
+        if (r) r();
     }
 
-    /** 知识卡收进手机后调用：淡出整个房间 */
+    /** 调试：直接放好床垫（Playwright 验证用） */
+    debugPlace(key: string): void {
+        const entry = this.cards.get(key);
+        if (!entry || !entry.def.safe || this.placed.has(key) || this.done) return;
+        this.placed.add(key);
+        this.paintCard(key, true);
+        this.updateProgress();
+        this.showInside(entry.def, this.insideSlot(entry.def));
+        this.checkDone();
+    }
+
+    /** 调试：跳过点击婴儿床，直接打开物品栏 */
+    debugOpenTray(): void {
+        this.openTray();
+    }
+
     close(): Promise<void> {
         return new Promise<void>((resolve) => {
             const op = opacity(this.root);
@@ -539,8 +337,11 @@ export class SleepRoomView {
         });
     }
 
-    private toLocal(e: EventTouch): Vec3 {
-        const p = e.getUILocation();
-        return this.root.getComponent(UITransform)!.convertToNodeSpaceAR(new Vec3(p.x, p.y, 0));
+    private toast(msg: string, holdMs = 1600): void {
+        this.hintL.string = msg;
+        const op = opacity(this.hintN);
+        Tween.stopAllByTarget(op);
+        op.opacity = 255;
+        tween(op).delay(holdMs / 1000).to(0.3, { opacity: 0 }).start();
     }
 }
